@@ -47,7 +47,19 @@ Two rules carry the whole design:
 |`FieldName`|yes|The field the control edits, and the field whose picklist the tree is read from.|
 |`Paths`|no|A fallback list — semicolons or new lines — used **only** when the field has no picklist. Handy for a quick trial on a plain text field; a picklist is the real setup.|
 
-## Behaviour
+### Which picklist becomes a tree?
+
+Nothing marks the field. A picklist field stays an ordinary picklist field; what turns it into a tree is a Simple Tree Picker control **on the layout** pointing at it through `FieldName`. Every other picklist on the form, with no control pointing at it, renders as the usual Azure DevOps dropdown.
+
+Three consequences worth knowing:
+
+1. **The binding is per work item type**, because layouts are. The same field can be a tree on User Story and a plain dropdown on Bug — add the control to one layout and not the other.
+1. **Drop the field's normal control** if it is already on the layout, or the form ends up with two editors for one field.
+1. **The field staying indistinguishable from any other picklist is the point.** It is what lets the value degrade gracefully everywhere the control does not render. Were the tree a property of the field, that would be lost.
+
+A picklist whose values contain no `\` renders as a flat list of roots — a harmless degenerate case.
+
+## Behavior
 
 - **Filter box** — matches on a node's name or on its full path, and keeps the branches that lead to a hit, so typing `A3\B` narrows to that branch.
 - **Adaptive height** — the control asks the form for exactly the height its tree needs, within bounds. If the host ignores the request the control scrolls instead; nothing depends on it.

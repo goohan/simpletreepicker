@@ -6,7 +6,7 @@
 //
 // Height: the control asks the host for exactly the height it needs on every
 // render (SDK.resize), capped, so a shallow tree does not waste form space.
-// Nothing depends on the host honouring it: the body scrolls if it does not,
+// Nothing depends on the host honoring it: the body scrolls if it does not,
 // and the tree has its own cap, so the control is usable either way.
 
 import * as SDK from "azure-devops-extension-sdk";
