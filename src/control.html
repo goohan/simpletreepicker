@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Simple Tree Picker</title>
+    <link rel="stylesheet" href="control.css" />
+  </head>
+  <body>
+    <div id="stp-root" class="stp">
+      <div class="stp-header">
+        <span id="stp-value" class="stp-value"></span>
+        <button id="stp-clear" class="stp-clear" type="button" title="Clear the value" hidden>&#10005;</button>
+      </div>
+      <input id="stp-filter" class="stp-filter" type="search" placeholder="Filter&#8230;" autocomplete="off" spellcheck="false" />
+      <div id="stp-tree" class="stp-tree"></div>
+      <p id="stp-message" class="stp-message" hidden></p>
+    </div>
+    <script src="control.js"></script>
+  </body>
+</html>

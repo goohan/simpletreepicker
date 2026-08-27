@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Simple Tree Picker &#8212; preview</title>
+    <link rel="stylesheet" href="../src/control.css" />
+    <style>
+      body { font-family: "Segoe UI", sans-serif; font-size: 12px; margin: 0; padding: 24px; background: #f8f8f8; color: #1f1f1f; }
+      @media (prefers-color-scheme: dark) { body { background: #1f1f1f; color: #e8e8e8; } }
+      h1 { font-size: 15px; margin: 0 0 4px; }
+      .note { color: #767676; margin: 0 0 20px; max-width: 60ch; }
+      .stage { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+      /* Mimics the iframe the work item form gives the control: fixed width, and
+         the height the control asked for through SDK.resize. */
+      .frame { width: 340px; border: 1px dashed #b0b0b0; border-radius: 3px; padding: 6px; height: var(--preview-height, 200px); overflow: auto; resize: both; }
+      .side { flex: 1 1 320px; min-width: 280px; }
+      #log { font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; max-height: 320px; overflow: auto; border: 1px solid #d0d0d0; padding: 8px; border-radius: 3px; background: rgba(128,128,128,0.06); }
+      code { background: rgba(128,128,128,0.15); padding: 1px 4px; border-radius: 2px; }
+    </style>
+  </head>
+  <body>
+    <h1>Simple Tree Picker &#8212; local preview</h1>
+    <p class="note">
+      The control below runs its real code against a fake host (<code>dev/sdk-stub.js</code>). The dashed box stands in for the
+      iframe the work item form provides; its height is whatever the control last asked for via <code>SDK.resize</code>.
+      Drag its corner to see how it copes when the host ignores the request.
+    </p>
+    <div class="stage">
+      <div class="frame">
+        <div id="stp-root" class="stp">
+          <div class="stp-header">
+            <span id="stp-value" class="stp-value"></span>
+            <button id="stp-clear" class="stp-clear" type="button" title="Clear the value" hidden>&#10005;</button>
+          </div>
+          <input id="stp-filter" class="stp-filter" type="search" placeholder="Filter&#8230;" autocomplete="off" spellcheck="false" />
+          <div id="stp-tree" class="stp-tree"></div>
+          <p id="stp-message" class="stp-message" hidden></p>
+        </div>
+      </div>
+      <div class="side">
+        <p><strong>Field value:</strong> <code id="current">&#8212;</code></p>
+        <p>
+          <button id="set-orphan" type="button">Set a value outside the list</button>
+          <button id="do-refresh" type="button">onRefreshed</button>
+        </p>
+        <div id="log"></div>
+      </div>
+    </div>
+    <script>
+      const log = document.getElementById("log");
+      const current = document.getElementById("current");
+      window.addEventListener("stp-preview", (event) => {
+        const { event: name, detail, value } = event.detail;
+        current.textContent = value || "(empty)";
+        log.textContent += `${name}${detail === undefined ? "" : ": " + detail}\n`;
+        log.scrollTop = log.scrollHeight;
+      });
+      // A path that is not in the demo list, to exercise the orphan branch.
+      document.getElementById("set-orphan").addEventListener("click", () => {
+        window.__stpPreview.value = ["Renamed", "Old", "Path"].join("\\");
+      });
+      document.getElementById("do-refresh").addEventListener("click", () => window.__stpPreview.refresh());
+    </script>
+    <script src="preview.js"></script>
+  </body>
+</html>

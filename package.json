@@ -1,0 +1,31 @@
+{
+  "name": "simpletreepicker",
+  "displayName": "Simple Tree Picker",
+  "description": "Azure DevOps work item form control that renders a flat list of backslash-separated paths as a tree and stores the full path of the node you pick.",
+  "version": "0.1.0",
+  "publisher": "goohan",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/goohan/simpletreepicker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/goohan/simpletreepicker/issues"
+  },
+  "homepage": "https://github.com/goohan/simpletreepicker#readme",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.mjs",
+    "package": "npm run build && tfx extension create --manifest-globs vss-extension.json --output-path .",
+    "preview": "node build.mjs --preview"
+  },
+  "dependencies": {
+    "azure-devops-extension-sdk": "5.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "tfx-cli": "^0.24.0"
+  }
+}

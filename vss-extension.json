@@ -1,0 +1,102 @@
+{
+  "manifestVersion": 1,
+  "id": "simpletreepicker",
+  "publisher": "goohan",
+  "version": "0.1.0",
+  "name": "Simple Tree Picker",
+  "description": "Work item form control that renders a flat list of backslash-separated paths as a tree and stores the full path of the node you pick.",
+  "public": false,
+  "categories": [
+    "Azure Boards"
+  ],
+  "tags": [
+    "work item",
+    "form control",
+    "tree",
+    "picklist",
+    "taxonomy",
+    "classification",
+    "area path"
+  ],
+  "targets": [
+    {
+      "id": "Microsoft.VisualStudio.Services"
+    }
+  ],
+  "icons": {
+    "default": "assets/icon.png"
+  },
+  "content": {
+    "details": {
+      "path": "README.md"
+    },
+    "license": {
+      "path": "LICENSE.md"
+    }
+  },
+  "links": {
+    "repository": {
+      "uri": "https://github.com/goohan/simpletreepicker"
+    },
+    "issues": {
+      "uri": "https://github.com/goohan/simpletreepicker/issues"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "uri": "https://github.com/goohan/simpletreepicker"
+  },
+  "scopes": [
+    "vso.work"
+  ],
+  "files": [
+    {
+      "path": "dist",
+      "addressable": true
+    },
+    {
+      "path": "assets",
+      "addressable": true
+    }
+  ],
+  "contributions": [
+    {
+      "id": "simple-tree-picker-control",
+      "type": "ms.vss-work-web.work-item-form-control",
+      "description": "Pick one node from a tree built out of the field's own values.",
+      "targets": [
+        "ms.vss-work-web.work-item-form"
+      ],
+      "properties": {
+        "name": "Simple Tree Picker",
+        "uri": "dist/control.html",
+        "height": 200,
+        "inputs": [
+          {
+            "id": "FieldName",
+            "description": "The field this control edits. It holds the full path of the node you pick, so it must be a text field — ideally a picklist whose allowed values ARE the paths, which is where the tree is read from.",
+            "type": "WorkItemField",
+            "properties": {
+              "workItemFieldTypes": [
+                "String"
+              ]
+            },
+            "validation": {
+              "dataType": "String",
+              "isRequired": true
+            }
+          },
+          {
+            "id": "Paths",
+            "description": "Only read when the field has no picklist: the paths to show, separated by semicolons or new lines. Example: A; A\\B; A\\B\\C; A2",
+            "type": "string",
+            "validation": {
+              "dataType": "String",
+              "isRequired": false
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
