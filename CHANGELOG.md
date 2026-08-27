@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.1.3
+
+- **Fixed: the control grew but never shrank.** Closing the panel left the space it had taken, and every further expansion claimed more, so a form only ever got taller. The height was measured with `document.documentElement.scrollHeight`, which returns max(content, viewport) — and inside an iframe the viewport is the very frame being sized, so the measurement reported whatever the frame had already grown to. The host was honoring every request; the requests were wrong. The control now measures its own root element, whose box depends on content alone.
+- The local preview harness became faithful as a side effect: it was measuring the whole preview page before, which is why this never reproduced outside a real work item form.
+
 ## 0.1.2
 
 - **The control is a dropdown now, not a permanent panel.** Closed it is a single line reading like a form field; clicking opens the filter and the tree, and picking a node closes it again. 0.1.1 kept the tree open forever and cost around 320px of every form that used it. It still cannot float over the form — the iframe clips — so opening pushes the form's content down and closing gives the space back.

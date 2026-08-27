@@ -165,9 +165,20 @@ function render() {
   else requestHeight();
 }
 
-/** Asks the host for the height the content needs, between the two caps. */
+/**
+ * Asks the host for the height the content needs, between the two caps.
+ *
+ * Measure the CONTROL, never the document. `document.documentElement.scrollHeight`
+ * returns max(content, viewport), and inside an iframe the viewport IS the
+ * frame we are trying to size — so once the frame had grown to fit an open
+ * tree, the measurement kept reporting that grown size no matter how little
+ * content was left. The height could only ever ratchet upward, which in 0.1.2
+ * looked like the host refusing to shrink the control. It was not: it was being
+ * asked for the wrong number. The root element's box depends on its content
+ * alone, so it stays honest in both directions.
+ */
 function requestHeight() {
-  const needed = Math.ceil(document.documentElement.scrollHeight);
+  const needed = Math.ceil(dom.root.getBoundingClientRect().height) + 2;
   SDK.resize(undefined, Math.max(MIN_HEIGHT, Math.min(needed, MAX_HEIGHT)));
 }
 
