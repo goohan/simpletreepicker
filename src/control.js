@@ -13,13 +13,18 @@
 // a real form on 2026-08-27, which is what made this shape worth building.
 
 import * as SDK from "azure-devops-extension-sdk";
-import { parsePaths, buildTree, ancestorsOf, filterTree, normalizePath } from "./tree.js";
+import { parsePaths, buildTree, ancestorsOf, normalizePath } from "./tree.js";
+import { renderTreeInto } from "./treeview.js";
 
-// Contribution id of the work item form service. Declared here rather than
-// imported from `azure-devops-extension-api`: that package ships the whole REST
-// surface for the sake of this one string, and the control never leaves the
-// client — every read and write goes through the form, not the API.
+// Contribution ids of the two host services this control uses. Declared here
+// rather than imported from `azure-devops-extension-api`: that package ships
+// the whole REST surface for the sake of two strings, and the control never
+// leaves the client — every read and write goes through the form, not the API.
 const WORK_ITEM_FORM_SERVICE_ID = "ms.vss-work-web.work-item-form";
+const HOST_PAGE_LAYOUT_SERVICE_ID = "ms.vss-features.host-page-layout-service";
+
+/** Contribution id of the dialog content, as declared in vss-extension.json. */
+const DIALOG_CONTRIBUTION = "simple-tree-picker-dialog";
 
 const MIN_HEIGHT = 32;
 const MAX_HEIGHT = 460;
@@ -37,6 +42,8 @@ const state = {
   message: "",
   /** Whether the picker panel is showing. Closed, the control is one line. */
   open: false,
+  /** "inline" (panel that pushes) or "dialog" (host dialog that floats). */
+  pickerStyle: "inline",
 };
 
 let formService = null;
@@ -44,107 +51,23 @@ const dom = {};
 
 // ---------------------------------------------------------------- rendering
 
-/** Every node is rendered from data with textContent: field values are never markup. */
+/**
+ * The tree itself is drawn by the shared view, so the inline panel and the
+ * dialog cannot drift apart in look or behaviour.
+ */
 function renderTree() {
-  const filtering = state.filter.trim().length > 0;
-  const nodes = filterTree(state.tree, state.filter);
-  dom.tree.replaceChildren();
-
-  if (nodes.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "stp-empty";
-    empty.textContent = state.paths.length
-      ? "No node matches the filter."
-      : "This field has no values to pick from. Add them to the field's picklist, or to the control's Paths input.";
-    dom.tree.append(empty);
-  } else {
-    dom.tree.append(renderList(nodes, 0, filtering));
-  }
+  renderTreeInto(dom.tree, {
+    tree: state.tree,
+    value: state.value,
+    filter: state.filter,
+    expanded: state.expanded,
+    orphan: state.orphan,
+    onSelect: select,
+    onToggle: toggleExpanded,
+    emptyMessage:
+      "This field has no values to pick from. Add them to the field's picklist, or to the control's Paths input.",
+  });
   requestHeight();
-}
-
-function renderList(nodes, depth, filtering) {
-  const list = document.createElement("ul");
-  list.className = "stp-list";
-  list.setAttribute("role", depth === 0 ? "tree" : "group");
-
-  for (const node of nodes) {
-    const hasChildren = node.children.length > 0;
-    const expanded = filtering || state.expanded.has(node.path);
-    const selected = node.path === state.value;
-
-    const item = document.createElement("li");
-    item.className = "stp-item";
-    item.setAttribute("role", "treeitem");
-    item.setAttribute("aria-selected", String(selected));
-    if (hasChildren) item.setAttribute("aria-expanded", String(expanded));
-
-    const row = document.createElement("div");
-    row.className = "stp-row";
-    if (selected) row.classList.add("is-selected");
-    if (!node.selectable) row.classList.add("is-group");
-    row.style.paddingLeft = `${depth * 16 + 4}px`;
-    row.title = node.selectable ? node.path : `${node.path} — grouping only, not a valid value`;
-
-    // The twisty keeps its footprint even with no glyph, so labels line up at a
-    // given depth whether or not the node has children.
-    const twisty = document.createElement("span");
-    twisty.className = "stp-twisty";
-    if (hasChildren) {
-      twisty.classList.add("is-clickable");
-      twisty.textContent = expanded ? "▾" : "▸";
-      twisty.setAttribute("role", "button");
-      twisty.setAttribute("aria-label", expanded ? "Collapse" : "Expand");
-      twisty.addEventListener("click", (event) => {
-        event.stopPropagation();
-        toggleExpanded(node.path);
-      });
-    }
-    row.append(twisty);
-
-    const label = document.createElement("span");
-    label.className = "stp-label";
-    label.textContent = node.name;
-    row.append(label);
-
-    if (selected && state.orphan) {
-      const badge = document.createElement("span");
-      badge.className = "stp-badge";
-      badge.textContent = "not in list";
-      row.append(badge);
-    }
-    if (selected) {
-      const check = document.createElement("span");
-      check.className = "stp-check";
-      check.textContent = "✓";
-      row.append(check);
-    }
-
-    if (node.selectable) {
-      row.tabIndex = 0;
-      row.addEventListener("click", () => select(node.path));
-      row.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          select(node.path);
-        }
-      });
-    } else if (hasChildren) {
-      row.tabIndex = 0;
-      row.addEventListener("click", () => toggleExpanded(node.path));
-      row.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          toggleExpanded(node.path);
-        }
-      });
-    }
-
-    item.append(row);
-    if (hasChildren && expanded) item.append(renderList(node.children, depth + 1, filtering));
-    list.append(item);
-  }
-  return list;
 }
 
 function renderHeader() {
@@ -230,8 +153,46 @@ function closePanel() {
 }
 
 function togglePanel() {
+  if (state.pickerStyle === "dialog") {
+    openDialog();
+    return;
+  }
   if (state.open) closePanel();
   else openPanel();
+}
+
+/**
+ * The dialog surface, chosen per field through the PickerStyle input.
+ *
+ * The host draws it at page level, so it genuinely FLOATS over the form — the
+ * one thing the inline panel cannot do, because the control's iframe clips. It
+ * is a centred modal rather than a dropdown anchored to the field: the platform
+ * offers extensions a dialog and a side panel and nothing anchored, so an
+ * Area-Path-style popup is not reachable from an extension at all.
+ *
+ * The picked value travels through a CALLBACK in `configuration`, not through
+ * the dialog's return value — XDM proxies functions across the frame boundary,
+ * which is how `onClose` itself works. That means the field is written the
+ * moment the user picks: if the host's own close handle turns out not to be
+ * where the dialog expects it, the value is already saved and the worst case is
+ * that the user closes the dialog by hand.
+ */
+async function openDialog() {
+  try {
+    const layout = await SDK.getService(HOST_PAGE_LAYOUT_SERVICE_ID);
+    layout.openCustomDialog(`${SDK.getExtensionContext().id}.${DIALOG_CONTRIBUTION}`, {
+      title: state.fieldName ? `Select a value` : "Simple Tree Picker",
+      lightDismiss: true,
+      configuration: {
+        paths: state.paths,
+        value: state.value,
+        onPick: (path) => select(path),
+      },
+    });
+  } catch (error) {
+    state.message = `Could not open the picker: ${error?.message ?? error}`;
+    render();
+  }
 }
 
 /**
@@ -375,6 +336,10 @@ async function main() {
   const inputs = SDK.getConfiguration().witInputs ?? {};
   state.fieldName = String(inputs.FieldName ?? "").trim();
   state.configuredPaths = String(inputs.Paths ?? "");
+  // Anything that is not exactly "dialog" means inline, so a typo in the layout
+  // config degrades to the surface that works without any host service.
+  state.pickerStyle =
+    String(inputs.PickerStyle ?? "").trim().toLowerCase() === "dialog" ? "dialog" : "inline";
 
   if (!state.fieldName) {
     fail("No field is bound to this control. Set its Field input in the work item layout.");

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Simple Tree Picker</title>
+    <link rel="stylesheet" href="control.css" />
+    <style>
+      /* The dialog owns its whole frame, so the tree gets the room the host gave
+         it rather than the inline panel's cap. */
+      body { padding: 8px; }
+      .stp-tree { max-height: none; }
+    </style>
+  </head>
+  <body>
+    <div id="stp-root" class="stp">
+      <input id="stp-filter" class="stp-filter" type="search" placeholder="Filter&#8230;" autocomplete="off" spellcheck="false" />
+      <div id="stp-tree" class="stp-tree"></div>
+      <p id="stp-message" class="stp-message" hidden></p>
+    </div>
+    <script src="dialog.js"></script>
+  </body>
+</html>

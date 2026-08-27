@@ -1,30 +1,40 @@
 // A stand-in for `azure-devops-extension-sdk`, used only by `npm run preview`.
 //
 // It fakes the host handshake and the work item form service against an
-// in-memory field, so the control can be driven in a plain browser. Only the
-// host is fake: the tree building, the rendering, the event wiring and the
-// read/write cycle against the field are the real code paths.
+// in-memory field. Only the host is fake: the tree building, the rendering, the
+// event wiring and the read/write cycle against the field are the real paths.
+//
+// The control runs inside a REAL iframe here, which matters more than it
+// sounds. Height is negotiated by postMessage to the parent, exactly as the
+// host does it, so the frame clips and measures the way it will in production.
+// The earlier harness ran the control loose in the page, and that is precisely
+// why a measurement bug — reading the frame it was trying to size — survived
+// local testing and had to be found in Azure DevOps.
 
 const FIELD_NAME = "Custom.Demo";
 
 const DEMO_PATHS = [
-  "ErpCloud",
-  "ErpCloud\\Web App",
-  "ErpCloud\\Web App\\Treasury",
-  "ErpCloud\\Web App\\Inventory",
-  "ErpCloud\\Web App\\Sales",
-  "ErpCloud\\Ventapp\\Sales",
-  "EDocuments",
-  "Salesforce",
-  "Global\\Very\\Deep\\Branch\\To\\Test\\Scrolling",
+  "Administration",
+  "Commercial",
+  "Development",
+  "Development\\EDocuments",
+  "Development\\Erp",
+  "Development\\ErpCloud",
+  "Development\\Licensing",
+  "Development\\Salesforce",
+  "Development\\SalesforceCloud",
+  "Support",
+  "Support\\Consulting",
+  "Support\\Implementations",
+  "Deep\\Branch\\With\\Several\\Levels\\To\\Test\\Scrolling",
 ];
 
-const field = { value: "ErpCloud\\Web App\\Treasury" };
+const field = { value: "Development\\Salesforce" };
 let observer = null;
 
-/** The panel the preview page renders beside the control. */
+/** Everything the harness page shows goes through here. */
 function report(event, detail) {
-  window.dispatchEvent(new CustomEvent("stp-preview", { detail: { event, detail, value: field.value } }));
+  parent.postMessage({ source: "stp-preview", event, detail, value: field.value }, "*");
 }
 
 const formService = {
@@ -39,6 +49,20 @@ const formService = {
   async getAllowedFieldValues(name) {
     report("getAllowedFieldValues", name);
     return DEMO_PATHS;
+  },
+};
+
+/**
+ * The dialog surface is deliberately NOT simulated. Its real risk is whether
+ * the host behaves as the code assumes — where the close handle lives, whether
+ * XDM proxies the pick callback — and a stub built on those same assumptions
+ * would only confirm them to itself. Better to say so out loud than to hand
+ * over a green light that means nothing.
+ */
+const layoutService = {
+  openCustomDialog() {
+    report("openCustomDialog", "NOT SIMULATED — verify the dialog style in Azure DevOps");
+    parent.postMessage({ source: "stp-preview", event: "dialog-unavailable" }, "*");
   },
 };
 
@@ -57,15 +81,26 @@ export async function notifyLoadFailed(error) {
 }
 
 export function getConfiguration() {
-  return { witInputs: { FieldName: FIELD_NAME, Paths: "" } };
+  const params = new URLSearchParams(location.search);
+  return {
+    witInputs: {
+      FieldName: FIELD_NAME,
+      Paths: "",
+      PickerStyle: params.get("style") === "dialog" ? "dialog" : "inline",
+    },
+  };
 }
 
 export function getContributionId() {
   return "preview.simple-tree-picker-control";
 }
 
-export async function getService() {
-  return formService;
+export function getExtensionContext() {
+  return { id: "goohan.simpletreepicker", publisherId: "goohan", extensionId: "simpletreepicker" };
+}
+
+export async function getService(contributionId) {
+  return contributionId === "ms.vss-features.host-page-layout-service" ? layoutService : formService;
 }
 
 export function register(id, instance) {
@@ -77,20 +112,19 @@ export function unregister() {
   observer = null;
 }
 
+/** The host owns the frame's height; here the parent page plays that part. */
 export function resize(width, height) {
   report("resize", `height = ${height}px`);
-  document.documentElement.style.setProperty("--preview-height", `${height}px`);
+  parent.postMessage({ source: "stp-preview", event: "resize", height }, "*");
 }
 
-// Exposed so the preview page can poke the control the way the form would.
-window.__stpPreview = {
-  get value() {
-    return field.value;
-  },
-  set value(next) {
-    field.value = next;
-    observer?.onFieldChanged?.({ changedFields: { [FIELD_NAME]: next } });
-  },
-  refresh: () => observer?.onRefreshed?.(),
-  reset: () => observer?.onReset?.(),
-};
+// Lets the harness poke the control the way the form would.
+window.addEventListener("message", (message) => {
+  if (message.data?.source !== "stp-harness") return;
+  const { command, value } = message.data;
+  if (command === "set-value") {
+    field.value = value;
+    observer?.onFieldChanged?.({ changedFields: { [FIELD_NAME]: value } });
+  }
+  if (command === "refresh") observer?.onRefreshed?.();
+});

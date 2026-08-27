@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.2.0
+
+- **New `PickerStyle` input: `inline` or `dialog`.** `inline` (the default, and what 0.1.x did) expands the tree under the field and pushes the form's content down. `dialog` opens the tree in a dialog the host draws **over** the form, so nothing on the form moves — better for large taxonomies. Chosen per field in the work item layout.
+- Both surfaces share one tree renderer, so they cannot drift apart in look or behavior. The dialog never touches the work item: it reports the pick back to the control through a callback, and the control writes the field.
+- There is deliberately no third, anchored-and-floating style like the Area Path picker's. That picker is part of Azure DevOps itself and is drawn in the page; a custom control lives in an iframe that clips, and the only escapes the platform offers an extension are a dialog and a side panel — nothing anchored to a field.
+- The local preview harness now runs the control in a **real iframe**, negotiating height by message-passing exactly as the host does, so clipping and measurement behave as they will in production. Its page is derived from the real control page at build time rather than duplicated. The `dialog` style is deliberately not simulated there — its risk is whether the host behaves as assumed, and a stub built on the same assumptions could only agree with itself.
+
 ## 0.1.3
 
 - **Fixed: the control grew but never shrank.** Closing the panel left the space it had taken, and every further expansion claimed more, so a form only ever got taller. The height was measured with `document.documentElement.scrollHeight`, which returns max(content, viewport) — and inside an iframe the viewport is the very frame being sized, so the measurement reported whatever the frame had already grown to. The host was honoring every request; the requests were wrong. The control now measures its own root element, whose box depends on content alone.

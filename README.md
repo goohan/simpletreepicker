@@ -45,7 +45,17 @@ Two rules carry the whole design:
 |Input|Required|What it does|
 |---|---|---|
 |`FieldName`|yes|The field the control edits, and the field whose picklist the tree is read from.|
+|`PickerStyle`|no|`inline` (default) or `dialog` — see below. Anything unrecognised means `inline`.|
 |`Paths`|no|A fallback list — semicolons or new lines — used **only** when the field has no picklist. Handy for a quick trial on a plain text field; a picklist is the real setup.|
+
+### Two ways to open
+
+Closed, the control is a single line either way. What differs is where the tree appears:
+
+- **`inline`** — the tree expands under the field and pushes the form's content down; picking a node closes it and gives the space back. Least ceremony, best for small and medium trees.
+- **`dialog`** — the tree opens in a dialog the host draws **over** the form, so nothing on the form moves. Better for large taxonomies, at the cost of feeling like a dialog.
+
+Why there is no third option, anchored and floating like the Area Path picker: that picker is part of Azure DevOps itself, drawn in the page. A custom control lives in an iframe, which clips its contents, and the only surfaces the platform offers an extension for escaping it are a dialog and a side panel — nothing anchored to a field. So `inline` pushes and `dialog` floats, and neither is a true dropdown.
 
 ### Which picklist becomes a tree?
 
@@ -61,7 +71,7 @@ A picklist whose values contain no `\` renders as a flat list of roots — a har
 
 ## Behavior
 
-- **Opens and closes like a dropdown** — closed, the control is a single line showing the current value. Click it and the filter and the tree appear; pick a node and it closes again, as do `Escape` and clicking away. One caveat, and it is the platform's: a work item form control lives in an iframe that **clips**, so nothing can float over the rest of the form. Opening grows the frame and pushes the form's content down; closing gives every pixel back.
+- **Opens and closes on demand** — closed, the control is a single line showing the current value. Click it and the filter and the tree appear; pick a node and it closes again, as do `Escape` and clicking away. Which way it opens is the `PickerStyle` input, above.
 - **Filter box** — matches on a node's name or on its full path, and keeps the branches that lead to a hit, so typing `A3\B` narrows to that branch.
 - **Opens where you left off, not where you were** — each opening expands only the path down to the current value, so the tree never drifts towards permanently open.
 - **A value outside the list** — a path that was renamed or written by hand still shows up, selected and flagged `not in list`, rather than leaving the control blank while the field holds a value.

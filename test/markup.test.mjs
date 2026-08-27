@@ -1,8 +1,16 @@
-// The control reaches into the page by id. Nothing at build time checks that
-// those ids exist, and a typo would only surface as a blank control inside a
-// work item form — the most expensive place to debug. These tests keep the
-// script and both copies of the markup (the real page and the preview harness)
-// honest about each other.
+// The pages reach into themselves by id, and the shared tree view assigns CSS
+// classes from JavaScript. Nothing at build time checks that those ids and
+// classes exist, and a typo would only surface as a blank control inside a work
+// item form — the most expensive place to debug. These tests keep the scripts
+// and every copy of the markup honest about each other.
+//
+// Both entry points are covered: the inline control and the dialog. When the
+// rendering moved into treeview.js, a version of this file that only read
+// control.js would have kept passing while checking nothing at all.
+//
+// The preview harness is NOT checked here: it derives its page from
+// src/control.html at build time instead of duplicating it, so there is no
+// second copy left to drift.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -10,15 +18,20 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
-const control = await read("../src/control.js");
-const page = await read("../src/control.html");
-const preview = await read("../dev/preview.html");
+const [control, dialog, treeview, controlPage, dialogPage, css] = await Promise.all([
+  read("../src/control.js"),
+  read("../src/dialog.js"),
+  read("../src/treeview.js"),
+  read("../src/control.html"),
+  read("../src/dialog.html"),
+  read("../src/control.css"),
+]);
 
 const idsUsedBy = (source) => [...source.matchAll(/getElementById\("([^"]+)"\)/g)].map((m) => m[1]);
 const idsDeclaredIn = (markup) => new Set([...markup.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
 
 test("every id the control looks up exists in control.html", () => {
-  const declared = idsDeclaredIn(page);
+  const declared = idsDeclaredIn(controlPage);
   const used = idsUsedBy(control);
   assert.ok(used.length >= 6, "expected the control to look up its elements by id");
   for (const id of used) {
@@ -26,24 +39,37 @@ test("every id the control looks up exists in control.html", () => {
   }
 });
 
-test("the preview harness declares the same ids as the real page", () => {
-  const declared = idsDeclaredIn(preview);
-  for (const id of idsUsedBy(control)) {
-    assert.ok(declared.has(id), `dev/preview.html is missing #${id}, so the preview would not match the real page`);
+test("every id the dialog looks up exists in dialog.html", () => {
+  const declared = idsDeclaredIn(dialogPage);
+  const used = idsUsedBy(dialog);
+  assert.ok(used.length >= 3, "expected the dialog to look up its elements by id");
+  for (const id of used) {
+    assert.ok(declared.has(id), `dialog.js reads #${id}, which dialog.html does not declare`);
   }
 });
 
-test("control.html loads the bundle and the stylesheet by their built names", () => {
-  assert.match(page, /<script src="control\.js">/);
-  assert.match(page, /<link rel="stylesheet" href="control\.css"/);
+test("each page loads its own bundle and the shared stylesheet", () => {
+  assert.match(controlPage, /<script src="control\.js">/);
+  assert.match(dialogPage, /<script src="dialog\.js">/);
+  for (const page of [controlPage, dialogPage]) {
+    assert.match(page, /<link rel="stylesheet" href="control\.css"/);
+  }
 });
 
-test("every CSS class the control assigns is styled", async () => {
-  const css = await read("../src/control.css");
-  const assigned = new Set([
-    ...[...control.matchAll(/className = "([^"]+)"/g)].flatMap((m) => m[1].split(/\s+/)),
-    ...[...control.matchAll(/classList\.(?:add|toggle)\("([^"]+)"/g)].map((m) => m[1]),
-  ]);
+test("every CSS class the scripts assign is styled", () => {
+  const assigned = new Set(
+    [control, dialog, treeview].flatMap((source) => [
+      ...[...source.matchAll(/className = "([^"]+)"/g)].flatMap((m) => m[1].split(/\s+/)),
+      ...[...source.matchAll(/classList\.(?:add|toggle)\("([^"]+)"/g)].map((m) => m[1]),
+    ]),
+  );
+  assert.ok(assigned.size >= 8, "expected the tree view to assign its classes from script");
   const unstyled = [...assigned].filter((name) => !new RegExp(`\\.${name}\\b`).test(css));
   assert.deepEqual(unstyled, [], `assigned but never styled: ${unstyled.join(", ")}`);
+});
+
+test("the dialog never writes to the work item itself", () => {
+  // The control owns the field; the dialog reports the pick through a callback.
+  // Keeping it that way is what stops a dialog-only bug from corrupting data.
+  assert.doesNotMatch(dialog, /setFieldValue|getFieldValue|getAllowedFieldValues/);
 });

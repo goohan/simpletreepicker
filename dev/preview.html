@@ -3,47 +3,57 @@
   <head>
     <meta charset="utf-8" />
     <title>Simple Tree Picker &#8212; preview</title>
-    <link rel="stylesheet" href="../src/control.css" />
     <style>
-      body { font-family: "Segoe UI", sans-serif; font-size: 12px; margin: 0; padding: 24px; background: #f8f8f8; color: #1f1f1f; }
-      @media (prefers-color-scheme: dark) { body { background: #1f1f1f; color: #e8e8e8; } }
+      :root { --ink: #1f1f1f; --paper: #fff; --edge: #e0e0e0; --muted: #767676; }
+      body { font-family: "Segoe UI", sans-serif; font-size: 12px; margin: 0; padding: 24px; background: #f5f5f5; color: var(--ink); }
       h1 { font-size: 15px; margin: 0 0 4px; }
-      .note { color: #767676; margin: 0 0 20px; max-width: 60ch; }
+      .note { color: var(--muted); margin: 0 0 20px; max-width: 72ch; }
       .stage { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
-      /* Mimics the iframe the work item form gives the control: fixed width, and
-         the height the control asked for through SDK.resize. */
-      .frame { width: 340px; border: 1px dashed #b0b0b0; border-radius: 3px; padding: 6px; height: var(--preview-height, 200px); overflow: auto; resize: both; }
-      .side { flex: 1 1 320px; min-width: 280px; }
-      #log { font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; max-height: 320px; overflow: auto; border: 1px solid #d0d0d0; padding: 8px; border-radius: 3px; background: rgba(128,128,128,0.06); }
+      /* A stand-in for the work item form: fields above and below the control,
+         so the push-down is visible and so is the space coming back. */
+      .form { flex: 0 0 380px; background: var(--paper); border: 1px solid var(--edge); border-radius: 3px; padding: 16px; }
+      .form h2 { font-size: 13px; margin: 0 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--edge); }
+      .lbl { color: var(--muted); font-size: 11px; margin-top: 10px; }
+      .val { padding: 2px 0 6px; }
+      /* The host owns this height; the control asks for it through SDK.resize. */
+      #host { display: block; width: 100%; border: 0; height: 60px; transition: height 90ms ease; }
+      .ghost { margin-top: 14px; padding: 10px; background: #0078d4; color: #fff; text-align: center; border-radius: 2px; }
+      .side { flex: 1 1 320px; min-width: 300px; }
+      #log { font-family: Consolas, monospace; font-size: 11px; white-space: pre-wrap; max-height: 300px; overflow: auto; border: 1px solid var(--edge); padding: 8px; border-radius: 3px; background: var(--paper); }
       code { background: rgba(128,128,128,0.15); padding: 1px 4px; border-radius: 2px; }
+      .warn { background: #fff4ce; border: 1px solid #f0d78c; padding: 8px; border-radius: 3px; margin-bottom: 10px; }
     </style>
   </head>
   <body>
     <h1>Simple Tree Picker &#8212; local preview</h1>
     <p class="note">
-      The control below runs its real code against a fake host (<code>dev/sdk-stub.js</code>). The dashed box stands in for the
-      iframe the work item form provides; its height is whatever the control last asked for via <code>SDK.resize</code>.
-      Drag its corner to see how it copes when the host ignores the request.
+      The control below is the real code, running in a <strong>real iframe</strong> against a fake host
+      (<code>dev/sdk-stub.js</code>). The frame's height is set by the parent from the control's
+      <code>SDK.resize</code> calls &#8212; the same negotiation the work item form performs &#8212; so clipping and
+      measurement behave as they will in production. Watch the mock field below the control move as the panel opens
+      and closes.
     </p>
     <div class="stage">
-      <div class="frame">
-        <div id="stp-root" class="stp">
-          <div class="stp-header">
-            <button id="stp-toggle" class="stp-toggle" type="button" aria-expanded="false">
-              <span id="stp-value" class="stp-value"></span>
-              <span id="stp-chevron" class="stp-chevron" aria-hidden="true">&#9662;</span>
-            </button>
-            <button id="stp-clear" class="stp-button" type="button" title="Clear the value" hidden>&#10005;</button>
-          </div>
-          <div id="stp-panel" class="stp-panel" hidden>
-            <input id="stp-filter" class="stp-filter" type="search" placeholder="Filter&#8230;" autocomplete="off" spellcheck="false" />
-            <div id="stp-tree" class="stp-tree"></div>
-          </div>
-          <p id="stp-message" class="stp-message" hidden></p>
-        </div>
+      <div class="form">
+        <h2>Classification</h2>
+        <div class="lbl">Value area</div>
+        <div class="val">Business</div>
+        <div class="lbl">ScaledFrom 2</div>
+        <iframe id="host" src="frame.html" title="Simple Tree Picker"></iframe>
+        <div class="ghost">7pace Timetracker &#8212; watch me move</div>
       </div>
       <div class="side">
-        <p><strong>Field value:</strong> <code id="current">&#8212;</code></p>
+        <div id="warn" class="warn" hidden>
+          The <strong>dialog</strong> style is not simulated here: its real risk is whether the host behaves as the
+          code assumes, and a stub built on those same assumptions could only agree with itself. Verify that style in
+          Azure DevOps.
+        </div>
+        <p>
+          <strong>Style:</strong>
+          <button id="s-inline" type="button">inline</button>
+          <button id="s-dialog" type="button">dialog</button>
+          &#160;&#160;<strong>Field:</strong> <code id="current">&#8212;</code>
+        </p>
         <p>
           <button id="set-orphan" type="button">Set a value outside the list</button>
           <button id="do-refresh" type="button">onRefreshed</button>
@@ -52,20 +62,29 @@
       </div>
     </div>
     <script>
+      const host = document.getElementById("host");
       const log = document.getElementById("log");
       const current = document.getElementById("current");
-      window.addEventListener("stp-preview", (event) => {
-        const { event: name, detail, value } = event.detail;
-        current.textContent = value || "(empty)";
-        log.textContent += `${name}${detail === undefined ? "" : ": " + detail}\n`;
+      const warn = document.getElementById("warn");
+
+      window.addEventListener("message", (message) => {
+        if (message.data?.source !== "stp-preview") return;
+        const { event, detail, height, value } = message.data;
+        if (event === "resize") host.style.height = height + "px";
+        if (event === "dialog-unavailable") warn.hidden = false;
+        if (value !== undefined) current.textContent = value || "(empty)";
+        log.textContent += event + (detail === undefined ? "" : ": " + detail) + "\n";
         log.scrollTop = log.scrollHeight;
       });
-      // A path that is not in the demo list, to exercise the orphan branch.
-      document.getElementById("set-orphan").addEventListener("click", () => {
-        window.__stpPreview.value = ["Renamed", "Old", "Path"].join("\\");
-      });
-      document.getElementById("do-refresh").addEventListener("click", () => window.__stpPreview.refresh());
+
+      const tell = (command, value) => host.contentWindow.postMessage({ source: "stp-harness", command, value }, "*");
+      const load = (style) => { warn.hidden = true; log.textContent = ""; host.src = "frame.html?style=" + style; };
+
+      document.getElementById("s-inline").addEventListener("click", () => load("inline"));
+      document.getElementById("s-dialog").addEventListener("click", () => load("dialog"));
+      document.getElementById("set-orphan").addEventListener("click", () =>
+        tell("set-value", ["Renamed", "Old", "Path"].join("\\")));
+      document.getElementById("do-refresh").addEventListener("click", () => tell("refresh"));
     </script>
-    <script src="preview.js"></script>
   </body>
 </html>

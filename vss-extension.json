@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "simpletreepicker",
   "publisher": "goohan",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "name": "Simple Tree Picker",
   "description": "Work item form control that renders a flat list of backslash-separated paths as a tree and stores the full path of the node you pick.",
   "public": true,
@@ -87,6 +87,27 @@
             }
           },
           {
+            "id": "PickerStyle",
+            "description": "How the picker opens. 'inline' (the default) expands under the field and pushes the form's content down; 'dialog' opens a dialog that floats over the form, which suits large trees. Anything unrecognised means inline.",
+            "type": "string",
+            "values": {
+              "possibleValues": [
+                {
+                  "value": "inline",
+                  "displayValue": "Inline — expands under the field"
+                },
+                {
+                  "value": "dialog",
+                  "displayValue": "Dialog — floats over the form"
+                }
+              ]
+            },
+            "validation": {
+              "dataType": "String",
+              "isRequired": false
+            }
+          },
+          {
             "id": "Paths",
             "description": "Only read when the field has no picklist: the paths to show, separated by semicolons or new lines. Example: A; A\\B; A\\B\\C; A2",
             "type": "string",
@@ -96,6 +117,15 @@
             }
           }
         ]
+      }
+    },
+    {
+      "id": "simple-tree-picker-dialog",
+      "type": "ms.vss-web.control",
+      "description": "The tree, rendered inside a dialog the host draws over the form. Opened by the control when its PickerStyle input is 'dialog'.",
+      "targets": [],
+      "properties": {
+        "uri": "dist/dialog.html"
       }
     }
   ]
