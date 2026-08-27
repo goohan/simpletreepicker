@@ -4,10 +4,13 @@
 // field's allowed values (a picklist, normally), renders them as a tree, and
 // writes back the full path of the node the user picks.
 //
-// Height: the control asks the host for exactly the height it needs on every
-// render (SDK.resize), capped, so a shallow tree does not waste form space.
-// Nothing depends on the host honoring it: the body scrolls if it does not,
-// and the tree has its own cap, so the control is usable either way.
+// Shape: closed, the control is a single line that reads like a form field;
+// clicking it opens the panel with the filter and the tree, and picking a node
+// closes it again. It is NOT a floating dropdown — the iframe the work item
+// form gives the control clips its contents, so nothing can overlay the rest of
+// the form. Opening asks the host for more height (SDK.resize) and pushes the
+// form's content down; closing gives the space back. Confirmed working against
+// a real form on 2026-08-27, which is what made this shape worth building.
 
 import * as SDK from "azure-devops-extension-sdk";
 import { parsePaths, buildTree, ancestorsOf, filterTree, normalizePath } from "./tree.js";
@@ -18,7 +21,7 @@ import { parsePaths, buildTree, ancestorsOf, filterTree, normalizePath } from ".
 // client — every read and write goes through the form, not the API.
 const WORK_ITEM_FORM_SERVICE_ID = "ms.vss-work-web.work-item-form";
 
-const MIN_HEIGHT = 90;
+const MIN_HEIGHT = 32;
 const MAX_HEIGHT = 460;
 
 const state = {
@@ -32,6 +35,8 @@ const state = {
   expanded: new Set(),
   filter: "",
   message: "",
+  /** Whether the picker panel is showing. Closed, the control is one line. */
+  open: false,
 };
 
 let formService = null;
@@ -81,9 +86,12 @@ function renderList(nodes, depth, filtering) {
     row.style.paddingLeft = `${depth * 16 + 4}px`;
     row.title = node.selectable ? node.path : `${node.path} — grouping only, not a valid value`;
 
+    // The twisty keeps its footprint even with no glyph, so labels line up at a
+    // given depth whether or not the node has children.
     const twisty = document.createElement("span");
     twisty.className = "stp-twisty";
     if (hasChildren) {
+      twisty.classList.add("is-clickable");
       twisty.textContent = expanded ? "▾" : "▸";
       twisty.setAttribute("role", "button");
       twisty.setAttribute("aria-label", expanded ? "Collapse" : "Expand");
@@ -142,7 +150,9 @@ function renderList(nodes, depth, filtering) {
 function renderHeader() {
   dom.value.textContent = state.value || "(none)";
   dom.value.classList.toggle("is-empty", !state.value);
-  dom.value.title = state.value;
+  dom.toggle.title = state.value || "Pick a value";
+  dom.toggle.setAttribute("aria-expanded", String(state.open));
+  dom.chevron.textContent = state.open ? "▴" : "▾";
   dom.clear.hidden = !state.value;
   dom.message.textContent = state.message;
   dom.message.hidden = !state.message;
@@ -150,7 +160,9 @@ function renderHeader() {
 
 function render() {
   renderHeader();
-  renderTree();
+  dom.panel.hidden = !state.open;
+  if (state.open) renderTree();
+  else requestHeight();
 }
 
 /** Asks the host for the height the content needs, between the two caps. */
@@ -164,7 +176,51 @@ function requestHeight() {
 function toggleExpanded(path) {
   if (state.expanded.has(path)) state.expanded.delete(path);
   else state.expanded.add(path);
-  renderTree();
+  render();
+}
+
+/**
+ * The expansion a freshly opened panel deserves: just the path down to the
+ * current value, nothing else — the selection stays visible, which is the point
+ * of revealing it at all.
+ *
+ * Expansion used to only ever GROW: every selection opened its ancestors and
+ * nothing ever closed them, so the tree drifted towards fully open and stayed
+ * there for the life of the form.
+ */
+function resetExpansion() {
+  state.expanded = new Set(ancestorsOf(state.value));
+}
+
+/**
+ * Opening and closing the panel.
+ *
+ * This is as close to a dropdown as a work item form control gets. The control
+ * lives in an iframe that CLIPS, so nothing can float over the rest of the
+ * form; what the panel does instead is grow the iframe through SDK.resize and
+ * push the form's content down, then give the space back on close. v0.1.1 kept
+ * the tree open permanently and cost ~320px of every form that used it.
+ */
+function openPanel() {
+  state.open = true;
+  state.filter = "";
+  dom.filter.value = "";
+  // Each opening starts from the same place: only the path to the current
+  // value, never whatever was left expanded last time.
+  resetExpansion();
+  render();
+  dom.filter.focus();
+}
+
+function closePanel() {
+  if (!state.open) return;
+  state.open = false;
+  render();
+}
+
+function togglePanel() {
+  if (state.open) closePanel();
+  else openPanel();
 }
 
 /**
@@ -185,6 +241,9 @@ async function select(path) {
     state.value = path;
     rebuildTree();
     state.message = "";
+    // Picking is the whole point of having the panel open, so it closes —
+    // the form gets its space back without the user asking twice.
+    state.open = false;
   } catch (error) {
     // The usual cause is a read-only work item or field: report it in place
     // instead of leaving the click silently doing nothing.
@@ -241,6 +300,10 @@ async function syncValue() {
 async function refresh() {
   await loadPaths();
   await syncValue();
+  // A load, a refresh or a reset is a fresh start for the form, so the tree
+  // starts closed too. onFieldChanged deliberately does NOT come through here:
+  // collapsing the tree under someone mid-edit would be hostile.
+  resetExpansion();
   render();
 }
 
@@ -251,16 +314,38 @@ async function refresh() {
 function captureDom() {
   if (dom.root) return;
   dom.root = document.getElementById("stp-root");
+  dom.toggle = document.getElementById("stp-toggle");
   dom.value = document.getElementById("stp-value");
+  dom.chevron = document.getElementById("stp-chevron");
   dom.clear = document.getElementById("stp-clear");
+  dom.panel = document.getElementById("stp-panel");
   dom.filter = document.getElementById("stp-filter");
   dom.tree = document.getElementById("stp-tree");
   dom.message = document.getElementById("stp-message");
 
+  dom.toggle.addEventListener("click", togglePanel);
   dom.clear.addEventListener("click", clearValue);
   dom.filter.addEventListener("input", () => {
     state.filter = dom.filter.value;
     renderTree();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.open) {
+      event.preventDefault();
+      closePanel();
+      dom.toggle.focus();
+    }
+  });
+
+  // Clicking elsewhere in the form closes the panel, the way a dropdown would.
+  // The iframe cannot see clicks outside itself, but it does lose focus — and
+  // the timeout lets focus land inside the control first, since clicking a row
+  // blurs the window momentarily in some browsers.
+  window.addEventListener("blur", () => {
+    setTimeout(() => {
+      if (state.open && !document.hasFocus()) closePanel();
+    }, 0);
   });
 }
 

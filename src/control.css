@@ -1,11 +1,27 @@
-/* The host applies the user's theme (SDK.init applyTheme) as CSS custom
-   properties on the document. Every one of them is used with a fallback, so a
-   renamed or missing variable degrades to a readable control instead of an
-   invisible one. The background stays transparent on purpose: the work item
-   form paints behind the iframe and the control should not fight it. */
+/* Theming: everything derives from the TEXT COLOR, because that is the one
+   thing the host guarantees. `SDK.init({applyTheme: true})` injects the host's
+   theme variables and the SDK itself pins `body { color: var(--text-primary-color) }`.
+   The rest of Azure DevOps' variable names are undocumented and unstable, so
+   this file guesses at only one more (the accent) and mixes everything else out
+   of `currentColor`.
+
+   What this file must NEVER do — the 0.1.1 bug, worth stating so it does not
+   come back: fall back to CSS system colors (`CanvasText`, `GrayText`, `Field`)
+   or declare `color-scheme`. Those follow the BROWSER/OS theme, not ADO's, so a
+   user reading a light work item form in a dark browser got a dark control with
+   unreadable text. Every fallback below is a literal, and it is ADO's LIGHT
+   default, because that is the theme a fresh organization ships with.
+
+   The background stays transparent on purpose: the work item form paints behind
+   the iframe and the control should not fight it. */
 
 :root {
-  color-scheme: light dark;
+  --stp-accent: var(--communication-background, #0078d4);
+  --stp-muted: color-mix(in srgb, currentColor 60%, transparent);
+  --stp-hover: color-mix(in srgb, currentColor 10%, transparent);
+  --stp-line: color-mix(in srgb, currentColor 25%, transparent);
+  --stp-field: color-mix(in srgb, currentColor 6%, transparent);
+  --stp-selected: color-mix(in srgb, var(--communication-background, #0078d4) 22%, transparent);
 }
 
 html,
@@ -17,7 +33,7 @@ body {
 
 body {
   background: transparent;
-  color: var(--text-primary-color, CanvasText);
+  color: var(--text-primary-color, #1f1f1f);
   font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 12px;
   line-height: 1.4;
@@ -35,39 +51,92 @@ body {
 .stp-header {
   display: flex;
   align-items: center;
+  gap: 4px;
+  min-height: 22px;
+}
+
+/* Closed, this is the whole control: one line that reads like a form field and
+   opens the panel. It cannot float over the form — the iframe clips — so
+   opening grows the iframe and pushes the form's content down instead. */
+.stp-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
   gap: 6px;
-  min-height: 20px;
+  padding: 4px 6px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: var(--stp-field);
+  border: 1px solid var(--stp-line);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.stp-toggle:hover {
+  background: var(--stp-hover);
+}
+
+.stp-toggle:focus-visible {
+  outline: none;
+  border-color: var(--stp-accent);
 }
 
 .stp-value {
   flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
 }
 
+.stp-chevron {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--stp-muted);
+}
+
+.stp-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* `hidden` has to beat the flex display above, or the closed panel keeps its
+   height and the control never gives the space back. */
+.stp-panel[hidden] {
+  display: none;
+}
+
 .stp-value.is-empty {
   font-weight: 400;
   font-style: italic;
-  color: var(--text-secondary-color, GrayText);
+  color: var(--stp-muted);
 }
 
-.stp-clear {
+.stp-button {
   flex: 0 0 auto;
   border: none;
   background: transparent;
-  color: var(--text-secondary-color, GrayText);
+  color: var(--stp-muted);
   cursor: pointer;
+  font: inherit;
   font-size: 11px;
   line-height: 1;
-  padding: 3px 5px;
+  padding: 4px 6px;
   border-radius: 2px;
 }
 
-.stp-clear:hover {
-  background: rgba(var(--palette-neutral-10, 128, 128, 128), 0.25);
-  color: var(--text-primary-color, CanvasText);
+.stp-button:hover {
+  background: var(--stp-hover);
+  color: inherit;
+}
+
+.stp-button:focus-visible {
+  outline: 1px solid var(--stp-accent);
+  outline-offset: -1px;
 }
 
 /* ------------------------------------------------------------- the filter */
@@ -77,15 +146,19 @@ body {
   width: 100%;
   padding: 4px 6px;
   font: inherit;
-  color: var(--text-primary-color, CanvasText);
-  background: var(--callout-background-color, Field);
-  border: 1px solid rgba(var(--palette-neutral-20, 128, 128, 128), 0.55);
+  color: inherit;
+  background: var(--stp-field);
+  border: 1px solid var(--stp-line);
   border-radius: 2px;
+}
+
+.stp-filter::placeholder {
+  color: var(--stp-muted);
 }
 
 .stp-filter:focus {
   outline: none;
-  border-color: var(--communication-background, #0078d4);
+  border-color: var(--stp-accent);
 }
 
 /* --------------------------------------------------------------- the tree */
@@ -110,7 +183,7 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 4px;
+  padding: 2px 4px;
   border-radius: 2px;
   border-left: 2px solid transparent;
   cursor: pointer;
@@ -118,32 +191,47 @@ body {
 }
 
 .stp-row:hover {
-  background: rgba(var(--palette-neutral-10, 128, 128, 128), 0.22);
+  background: var(--stp-hover);
 }
 
 .stp-row:focus-visible {
-  outline: 1px solid var(--communication-background, #0078d4);
+  outline: 1px solid var(--stp-accent);
   outline-offset: -1px;
 }
 
 .stp-row.is-selected {
-  background: rgba(var(--palette-primary-tint-40, 0, 120, 212), 0.20);
-  border-left-color: var(--communication-background, #0078d4);
+  background: var(--stp-selected);
+  border-left-color: var(--stp-accent);
 }
 
 /* A node that exists only to hold children: it groups, it is not a value. */
 .stp-row.is-group {
   cursor: default;
-  color: var(--text-secondary-color, GrayText);
+  color: var(--stp-muted);
 }
 
+/* Keeps its footprint with or without a glyph, so labels line up by depth.
+   Sized as a real hit target: at 12px with a 9px glyph it was unclickable, and
+   the only way to collapse a SELECTABLE branch goes through here. */
 .stp-twisty {
   flex: 0 0 auto;
-  width: 12px;
-  text-align: center;
-  font-size: 9px;
-  color: var(--text-secondary-color, GrayText);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 2px;
+  font-size: 11px;
+  color: var(--stp-muted);
+}
+
+.stp-twisty.is-clickable {
   cursor: pointer;
+}
+
+.stp-twisty.is-clickable:hover {
+  background: color-mix(in srgb, currentColor 22%, transparent);
+  color: inherit;
 }
 
 .stp-label {
@@ -155,7 +243,7 @@ body {
 
 .stp-check {
   flex: 0 0 auto;
-  color: var(--communication-background, #0078d4);
+  color: var(--stp-accent);
   font-weight: 600;
 }
 
@@ -164,8 +252,8 @@ body {
   font-size: 10px;
   padding: 0 4px;
   border-radius: 8px;
-  color: var(--text-secondary-color, GrayText);
-  border: 1px solid rgba(var(--palette-neutral-20, 128, 128, 128), 0.55);
+  color: var(--stp-muted);
+  border: 1px solid var(--stp-line);
 }
 
 /* ------------------------------------------------------------- the states */
@@ -173,7 +261,7 @@ body {
 .stp-empty,
 .stp-message {
   margin: 4px 2px;
-  color: var(--text-secondary-color, GrayText);
+  color: var(--stp-muted);
 }
 
 .stp-message {

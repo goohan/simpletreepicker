@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.1.2
+
+- **The control is a dropdown now, not a permanent panel.** Closed it is a single line reading like a form field; clicking opens the filter and the tree, and picking a node closes it again. 0.1.1 kept the tree open forever and cost around 320px of every form that used it. It still cannot float over the form — the iframe clips — so opening pushes the form's content down and closing gives the space back.
+- **Fixed: the control followed the browser's theme instead of Azure DevOps'.** Reading a light work item form in a dark browser produced a dark, unreadable control. The stylesheet had declared `color-scheme` and fallen back to CSS system colors (`CanvasText`, `GrayText`, `Field`), all of which resolve against the OS. Every color is now mixed from the host's own text color, and the fallbacks are literals.
+- Expansion no longer accumulates: each opening starts from the path to the current value rather than from whatever was left open before.
+- Bigger, clearer expand/collapse target on branch nodes — 18px with a hover state, up from an effectively unclickable 12px.
+
 ## 0.1.1
 
 - New icon. No functional change: 0.1.0 had already been uploaded for private testing, and the marketplace will not take the same version twice.
