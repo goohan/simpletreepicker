@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.1.1
+
+- New icon. No functional change: 0.1.0 had already been uploaded for private testing, and the marketplace will not take the same version twice.
+
 ## 0.1.0
 
 - First version. A work item form control that reads a flat list of backslash-separated paths, renders it as a tree, and writes the full path of the picked node back to the field.
