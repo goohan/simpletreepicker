@@ -1,27 +1,36 @@
-/* Theming: everything derives from the TEXT COLOR, because that is the one
-   thing the host guarantees. `SDK.init({applyTheme: true})` injects the host's
-   theme variables and the SDK itself pins `body { color: var(--text-primary-color) }`.
-   The rest of Azure DevOps' variable names are undocumented and unstable, so
-   this file guesses at only one more (the accent) and mixes everything else out
-   of `currentColor`.
+/* Theming: Azure DevOps injects its own design tokens into the extension frame
+   (`SDK.init({applyTheme: true})`), and this file uses the real ones. Their
+   names were captured from a live work item form rather than guessed — the
+   capture is kept as `dev/ado-theme-light.json`, and a test fails on any
+   variable referenced here that is not in it.
 
-   What this file must NEVER do — the 0.1.1 bug, worth stating so it does not
-   come back: fall back to CSS system colors (`CanvasText`, `GrayText`, `Field`)
-   or declare `color-scheme`. Those follow the BROWSER/OS theme, not ADO's, so a
-   user reading a light work item form in a dark browser got a dark control with
-   unreadable text. Every fallback below is a literal, and it is ADO's LIGHT
-   default, because that is the theme a fresh organization ships with.
+   Two shapes of token, and mixing them up produces nothing at all:
+     --palette-*        RGB COMPONENTS  ("200, 200, 200")  -> rgba(var(--x), 1)
+     everything else    complete colors ("rgba(0,0,0,.9)") -> var(--x)
 
-   The background stays transparent on purpose: the work item form paints behind
-   the iframe and the control should not fight it. */
+   What this file must NEVER do — the 0.1.1 bug, stated so it cannot come back:
+   declare `color-scheme` or fall back to CSS system colors (`CanvasText`,
+   `GrayText`, `Field`). Both hand the palette to the BROWSER's theme. With
+   `color-scheme` set and the body transparent, the browser paints the frame's
+   canvas dark for a dark-browser user reading a light Azure DevOps form — the
+   text was right and the background was not. Every fallback here is a literal
+   taken from the light capture, because light is what a fresh organization
+   ships with. */
 
 :root {
-  --stp-accent: var(--communication-background, #0078d4);
-  --stp-muted: color-mix(in srgb, currentColor 60%, transparent);
-  --stp-hover: color-mix(in srgb, currentColor 10%, transparent);
-  --stp-line: color-mix(in srgb, currentColor 25%, transparent);
-  --stp-field: color-mix(in srgb, currentColor 6%, transparent);
-  --stp-selected: color-mix(in srgb, var(--communication-background, #0078d4) 22%, transparent);
+  --stp-text: var(--text-primary-color, rgba(0, 0, 0, 0.9));
+  --stp-muted: var(--text-secondary-color, rgba(0, 0, 0, 0.55));
+  --stp-accent: var(--communication-background, rgba(0, 120, 212, 1));
+  --stp-focus: var(--focus-border-color, rgba(0, 120, 212, 1));
+
+  /* The field fill and the line around it, as the native combo wears them. */
+  --stp-field: rgba(var(--palette-neutral-4, 244, 244, 244), 1);
+  --stp-line: rgba(var(--palette-neutral-20, 200, 200, 200), 1);
+
+  /* The open panel is a callout: its own surface, above the form. */
+  --stp-surface: var(--callout-background-color, rgba(255, 255, 255, 1));
+  --stp-hover: rgba(var(--palette-neutral-4, 244, 244, 244), 1);
+  --stp-selected: var(--component-grid-selected-row-color, rgba(222, 236, 249, 1));
 }
 
 html,
@@ -33,17 +42,17 @@ body {
 
 body {
   background: transparent;
-  color: var(--text-primary-color, #1f1f1f);
+  color: var(--stp-text);
   font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.4;
 }
 
 .stp {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 2px 2px 4px;
+  gap: 3px;
+  padding: 1px;
 }
 
 /* ------------------------------------------------------------- the header */
@@ -51,20 +60,19 @@ body {
 .stp-header {
   display: flex;
   align-items: center;
-  gap: 4px;
-  min-height: 22px;
+  gap: 2px;
 }
 
-/* Closed, this is the whole control: one line that reads like a form field and
-   opens the panel. It cannot float over the form — the iframe clips — so
-   opening grows the iframe and pushes the form's content down instead. */
+/* Closed, this is the whole control, and it is dressed as the native combo:
+   same fill, same hairline, same caret on the right. */
 .stp-toggle {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 6px;
+  height: 30px;
+  padding: 0 8px;
   font: inherit;
   color: inherit;
   text-align: left;
@@ -75,12 +83,12 @@ body {
 }
 
 .stp-toggle:hover {
-  background: var(--stp-hover);
+  border-color: var(--stp-muted);
 }
 
 .stp-toggle:focus-visible {
   outline: none;
-  border-color: var(--stp-accent);
+  border-color: var(--stp-focus);
 }
 
 .stp-value {
@@ -89,19 +97,58 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+}
+
+.stp-value.is-empty {
+  color: var(--stp-muted);
 }
 
 .stp-chevron {
   flex: 0 0 auto;
-  font-size: 10px;
+  font-size: 9px;
   color: var(--stp-muted);
 }
 
+.stp-button {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--stp-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  border-radius: 2px;
+}
+
+.stp-button:hover {
+  background: var(--stp-hover);
+  color: var(--stp-text);
+}
+
+.stp-button:focus-visible {
+  outline: 1px solid var(--stp-focus);
+  outline-offset: -1px;
+}
+
+/* -------------------------------------------------------------- the panel */
+
+/* Dressed as an Azure DevOps callout — own surface, hairline and depth-8
+   shadow — so that although it pushes the form down instead of floating over
+   it, it at least reads as a dropdown rather than as part of the form. */
 .stp-panel {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding: 6px;
+  background: var(--stp-surface);
+  border: 1px solid var(--stp-line);
+  border-radius: 2px;
+  box-shadow:
+    0 3.2px 7.2px var(--callout-shadow-color, rgba(0, 0, 0, 0.132)),
+    0 0.6px 1.8px var(--callout-shadow-secondary-color, rgba(0, 0, 0, 0.108));
 }
 
 /* `hidden` has to beat the flex display above, or the closed panel keeps its
@@ -110,44 +157,14 @@ body {
   display: none;
 }
 
-.stp-value.is-empty {
-  font-weight: 400;
-  font-style: italic;
-  color: var(--stp-muted);
-}
-
-.stp-button {
-  flex: 0 0 auto;
-  border: none;
-  background: transparent;
-  color: var(--stp-muted);
-  cursor: pointer;
-  font: inherit;
-  font-size: 11px;
-  line-height: 1;
-  padding: 4px 6px;
-  border-radius: 2px;
-}
-
-.stp-button:hover {
-  background: var(--stp-hover);
-  color: inherit;
-}
-
-.stp-button:focus-visible {
-  outline: 1px solid var(--stp-accent);
-  outline-offset: -1px;
-}
-
-/* ------------------------------------------------------------- the filter */
-
 .stp-filter {
   box-sizing: border-box;
   width: 100%;
-  padding: 4px 6px;
+  height: 28px;
+  padding: 0 8px;
   font: inherit;
   color: inherit;
-  background: var(--stp-field);
+  background: var(--stp-surface);
   border: 1px solid var(--stp-line);
   border-radius: 2px;
 }
@@ -158,13 +175,13 @@ body {
 
 .stp-filter:focus {
   outline: none;
-  border-color: var(--stp-accent);
+  border-color: var(--stp-focus);
 }
 
 /* --------------------------------------------------------------- the tree */
 
 .stp-tree {
-  max-height: 320px;
+  max-height: 300px;
   overflow-y: auto;
 }
 
@@ -183,9 +200,8 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 4px;
-  border-radius: 2px;
-  border-left: 2px solid transparent;
+  min-height: 26px;
+  padding: 2px 6px 2px 4px;
   cursor: pointer;
   user-select: none;
 }
@@ -195,13 +211,12 @@ body {
 }
 
 .stp-row:focus-visible {
-  outline: 1px solid var(--stp-accent);
+  outline: 1px solid var(--stp-focus);
   outline-offset: -1px;
 }
 
 .stp-row.is-selected {
   background: var(--stp-selected);
-  border-left-color: var(--stp-accent);
 }
 
 /* A node that exists only to hold children: it groups, it is not a value. */
@@ -221,7 +236,7 @@ body {
   width: 18px;
   height: 18px;
   border-radius: 2px;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--stp-muted);
 }
 
@@ -230,8 +245,8 @@ body {
 }
 
 .stp-twisty.is-clickable:hover {
-  background: color-mix(in srgb, currentColor 22%, transparent);
-  color: inherit;
+  background: rgba(var(--palette-neutral-10, 218, 218, 218), 1);
+  color: var(--stp-text);
 }
 
 .stp-label {
@@ -244,14 +259,13 @@ body {
 .stp-check {
   flex: 0 0 auto;
   color: var(--stp-accent);
-  font-weight: 600;
 }
 
 .stp-badge {
   flex: 0 0 auto;
-  font-size: 10px;
-  padding: 0 4px;
-  border-radius: 8px;
+  font-size: 11px;
+  padding: 0 5px;
+  border-radius: 9px;
   color: var(--stp-muted);
   border: 1px solid var(--stp-line);
 }
@@ -260,10 +274,10 @@ body {
 
 .stp-empty,
 .stp-message {
-  margin: 4px 2px;
+  margin: 6px 4px;
   color: var(--stp-muted);
 }
 
 .stp-message {
-  color: var(--palette-error-text, #c4314b);
+  color: var(--status-error-text, rgba(218, 10, 0, 1));
 }

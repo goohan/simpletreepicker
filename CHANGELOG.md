@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.2.1
+
+- **Dressed as the native picklist.** The closed control now wears the same fill, hairline, height and caret as an Azure DevOps combo, and the open panel is a callout — its own surface, border and depth shadow — instead of bare text on the form.
+- **Real design tokens instead of approximations.** The colors come from Azure DevOps' own variables (`--palette-neutral-4`, `--component-grid-selected-row-color`, `--focus-border-color` and the rest), captured from a live work item form rather than guessed. The selected row is now ADO's actual selection blue.
+- Fixed a variable that Azure DevOps has never defined: `--palette-error-text`, silently falling back on every error message. The real one is `--status-error-text`.
+- Two new guards: a test fails on any host variable not present in the capture, and another on a `--palette-*` token used outside `rgb()`/`rgba()` — those hold bare RGB components, so used whole they yield no color at all.
+- The preview harness applies the captured theme exactly as the SDK does, so it shows the control in ADO's colors rather than its own.
+
 ## 0.2.0
 
 - **New `PickerStyle` input: `inline` or `dialog`.** `inline` (the default, and what 0.1.x did) expands the tree under the field and pushes the form's content down. `dialog` opens the tree in a dialog the host draws **over** the form, so nothing on the form moves — better for large taxonomies. Chosen per field in the work item layout.

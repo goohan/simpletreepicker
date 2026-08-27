@@ -61,23 +61,51 @@ test("no @media (prefers-color-scheme) branch decides any color", () => {
 });
 
 test("every var() fallback is a literal, so a missing host variable still renders", () => {
-  // `var(--x, <fallback>)` — the fallback must not itself be another guess with
-  // no fallback of its own, and must not be a system color (covered above).
-  const fallbacks = [...css.matchAll(/var\(\s*(--[\w-]+)\s*,([^()]*)\)/g)];
+  // `var(--x, <fallback>)` — the fallback must be a value the browser can use
+  // on its own. Two legal shapes, because Azure DevOps has two kinds of token:
+  // a complete color (`rgba(...)`, `#hex`) and a bare RGB component list
+  // ("200, 200, 200"), which is what every --palette-* variable holds.
+  const fallbacks = [...css.matchAll(/var\(\s*(--[\w-]+)\s*,([^()]*|[^()]*\([^()]*\)[^()]*)\)/g)];
   assert.ok(fallbacks.length >= 3, "expected the host variables to be used with fallbacks");
   for (const [, name, fallback] of fallbacks) {
     assert.match(
       fallback.trim(),
-      /^(#[0-9a-fA-F]{3,8}|rgb|rgba|hsl|[a-z]+)/,
+      /^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|\d)/,
       `${name} has no usable literal fallback`,
     );
   }
 });
 
-test("the one host variable the SDK guarantees is the one the body relies on", () => {
+test("every Azure DevOps variable referenced here exists in the captured theme", async () => {
+  // The names are not guessable, and guessing them is exactly how 0.1.1 shipped
+  // a --palette-error-text that Azure DevOps has never defined: the rule fell
+  // back silently and nobody could see it. dev/ado-theme-light.json is a real
+  // capture from a live work item form, so it settles the question by evidence.
+  const theme = JSON.parse(await readFile(new URL("../dev/ado-theme-light.json", import.meta.url), "utf8"));
+  const referenced = new Set([...css.matchAll(/var\(\s*(--[\w-]+)/g)].map((m) => m[1]));
+
+  // The control's own tokens are defined in this very file, not by the host.
+  const ours = new Set([...css.matchAll(/^\s*(--stp-[\w-]+)\s*:/gm)].map((m) => m[1]));
+
+  const invented = [...referenced].filter((name) => !ours.has(name) && !(name in theme));
+  assert.deepEqual(invented, [], `not defined by Azure DevOps: ${invented.join(", ")}`);
+});
+
+test("palette tokens are used as RGB components and the rest as whole colors", () => {
+  // --palette-* holds "200, 200, 200", so it only works wrapped in rgb()/rgba().
+  // Used bare it silently produces an invalid declaration and no color at all.
+  const bare = [...css.matchAll(/(^|[^(])\bvar\(\s*(--palette-[\w-]+)/g)].map((m) => m[2]);
+  assert.deepEqual(bare, [], `--palette-* used outside rgb()/rgba(): ${bare.join(", ")}`);
+});
+
+test("the text color derives from the one host variable the SDK guarantees", () => {
+  // The SDK pins `body { color: var(--text-primary-color) }` itself, so that
+  // token is the safest of the lot; the control's own --stp-text is built on it
+  // and everything readable follows from there.
   assert.match(
     css,
-    /color:\s*var\(--text-primary-color,/,
-    "the SDK itself sets body colour from --text-primary-color; everything else is mixed from it",
+    /--stp-text:\s*var\(--text-primary-color,/,
+    "--stp-text must derive from --text-primary-color, the token the SDK sets itself",
   );
+  assert.match(css, /body\s*\{[^}]*color:\s*var\(--stp-text\)/, "the body must use --stp-text");
 });

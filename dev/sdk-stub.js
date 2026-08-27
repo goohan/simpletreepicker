@@ -11,6 +11,8 @@
 // why a measurement bug — reading the frame it was trying to size — survived
 // local testing and had to be found in Azure DevOps.
 
+import theme from "./ado-theme-light.json";
+
 const FIELD_NAME = "Custom.Demo";
 
 const DEMO_PATHS = [
@@ -66,8 +68,25 @@ const layoutService = {
   },
 };
 
+/**
+ * Injects the real Azure DevOps design tokens, captured from a live work item
+ * form (dev/ado-theme-light.json), the same way the SDK does on handshake:
+ * one style element defining them on :root, plus the body color rule the SDK
+ * pins itself. That makes the harness show the control in ADO's actual colors
+ * instead of approximations.
+ */
+function applyCapturedTheme() {
+  const declarations = Object.entries(theme)
+    .map(([name, value]) => `${name}: ${value}`)
+    .join("; ");
+  const style = document.createElement("style");
+  style.textContent = `:root { ${declarations} } body { color: var(--text-primary-color) }`;
+  document.head.appendChild(style);
+}
+
 export async function init() {
-  report("init", "handshake");
+  applyCapturedTheme();
+  report("init", "handshake + theme applied");
 }
 
 export async function ready() {}
