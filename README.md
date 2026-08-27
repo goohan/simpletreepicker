@@ -61,11 +61,12 @@ A picklist whose values contain no `\` renders as a flat list of roots — a har
 
 ## Behavior
 
+- **Opens and closes like a dropdown** — closed, the control is a single line showing the current value. Click it and the filter and the tree appear; pick a node and it closes again, as do `Escape` and clicking away. One caveat, and it is the platform's: a work item form control lives in an iframe that **clips**, so nothing can float over the rest of the form. Opening grows the frame and pushes the form's content down; closing gives every pixel back.
 - **Filter box** — matches on a node's name or on its full path, and keeps the branches that lead to a hit, so typing `A3\B` narrows to that branch.
-- **Adaptive height** — the control asks the form for exactly the height its tree needs, within bounds. If the host ignores the request the control scrolls instead; nothing depends on it.
+- **Opens where you left off, not where you were** — each opening expands only the path down to the current value, so the tree never drifts towards permanently open.
 - **A value outside the list** — a path that was renamed or written by hand still shows up, selected and flagged `not in list`, rather than leaving the control blank while the field holds a value.
 - **Clear** — the `✕` next to the current value empties the field, for whenever the field is not required.
-- **Theme** — follows the user's Azure DevOps theme, light or dark.
+- **Theme** — follows the user's **Azure DevOps** theme, light or dark, rather than the browser's.
 
 ## What "Simple" means
 
