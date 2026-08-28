@@ -2,7 +2,7 @@
 
 ## 0.3.1
 
-- **The layout configuration shows labels for the inputs.** They had , which only reaches the ⓘ tooltip, but no  — which is what the configuration UI uses as the label — so an admin adding the control met three nameless boxes.
+- **The layout configuration shows labels for the inputs.** They carried `description`, which only reaches the ⓘ tooltip, but no `name` — which is what the configuration UI uses as the label — so an admin adding the control met three nameless boxes: `Field`, `Picker style` and `Paths (fallback)`.
 
 ## 0.3.0
 
