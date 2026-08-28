@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.3.3
+
+- **Typing preselects the first match.** The node that `Enter` — or simply leaving the control — would settle on is ringed in the accent as you type, and scrolled into view, so the outcome is visible before you commit to it.
+- **Fixed: `←` and `→` closed the panel instead of collapsing and expanding.** Re-rendering the tree destroys the focused row, so focus fell to the body and fired the same event as clicking away. The check now waits a tick and asks where focus actually ended up, by which time it is back on the restored row.
+- **Fixed: clicking the field sometimes did nothing.** The handler sat on the input alone, so the field's padding and the gap beside the chevron swallowed clicks. It now covers the whole field, chevron included.
+
 ## 0.3.2
 
 Three problems that arrived together with 0.3.0's typing, all of them about focus:

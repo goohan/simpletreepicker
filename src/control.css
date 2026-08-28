@@ -260,6 +260,13 @@ body {
   border-color: var(--stp-accent);
 }
 
+/* While typing, the node that Enter — or simply leaving the control — would
+   settle on. Ringed rather than filled, so it never passes for the real
+   selection sitting elsewhere in the tree. */
+.stp-row.is-preselected {
+  border-color: var(--stp-accent);
+}
+
 /* A node that exists only to hold children: it groups, it is not a value. */
 .stp-row.is-group {
   cursor: default;

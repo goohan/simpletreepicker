@@ -17,6 +17,7 @@ const INDENT_PX = 16;
  * @param {string} options.filter    the filter term
  * @param {Set}    options.expanded  paths whose children are showing
  * @param {boolean} options.orphan   the value is not among the declared paths
+ * @param {string} options.preselected  the node a bare Enter would settle on
  * @param {(path: string) => void} options.onSelect
  * @param {(path: string) => void} options.onToggle
  * @param {string} options.emptyMessage  shown when there is nothing to pick from
@@ -39,7 +40,7 @@ export function renderTreeInto(container, options) {
 }
 
 function renderList(nodes, depth, filtering, options) {
-  const { value, expanded: expandedPaths, orphan, onSelect, onToggle } = options;
+  const { value, expanded: expandedPaths, orphan, preselected, onSelect, onToggle } = options;
 
   const list = document.createElement("ul");
   list.className = "stp-list";
@@ -59,6 +60,7 @@ function renderList(nodes, depth, filtering, options) {
     const row = document.createElement("div");
     row.className = "stp-row";
     if (selected) row.classList.add("is-selected");
+    else if (node.path === preselected) row.classList.add("is-preselected");
     if (!node.selectable) row.classList.add("is-group");
     row.dataset.path = node.path;
     row.style.paddingLeft = `${depth * INDENT_PX + 4}px`;

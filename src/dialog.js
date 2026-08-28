@@ -12,7 +12,7 @@
 // whose host handle is typed `any` in the SDK) off the path that saves data.
 
 import * as SDK from "azure-devops-extension-sdk";
-import { parsePaths, buildTree, ancestorsOf, normalizePath } from "./tree.js";
+import { parsePaths, buildTree, ancestorsOf, findFirstMatch, normalizePath } from "./tree.js";
 import { renderTreeInto } from "./treeview.js";
 
 const state = {
@@ -62,6 +62,7 @@ function render() {
     filter: state.filter,
     expanded: state.expanded,
     orphan: state.orphan,
+    preselected: findFirstMatch(state.tree, state.filter),
     onSelect: pick,
     onToggle: (path) => {
       if (state.expanded.has(path)) state.expanded.delete(path);

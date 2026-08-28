@@ -70,6 +70,9 @@ function renderTree() {
     filter: state.filter,
     expanded: state.expanded,
     orphan: state.orphan,
+    // The node Enter would land on, shown while you are still typing so the
+    // outcome is visible before you commit to it.
+    preselected: findFirstMatch(state.tree, state.filter),
     onSelect: select,
     onToggle: toggleExpanded,
     emptyMessage:
@@ -77,6 +80,7 @@ function renderTree() {
   });
 
   if (hadFocusInTree) rowFor(state.focusedPath)?.focus();
+  else rowFor(findFirstMatch(state.tree, state.filter))?.scrollIntoView({ block: "nearest" });
   requestHeight();
 }
 
@@ -223,15 +227,6 @@ async function closePanel({ commit = true } = {}) {
   render();
 }
 
-function togglePanel() {
-  if (state.pickerStyle === "dialog") {
-    openDialog();
-    return;
-  }
-  if (state.open) closePanel();
-  else openPanel();
-}
-
 /**
  * The dialog surface, chosen per field through the PickerStyle input.
  *
@@ -373,15 +368,32 @@ function captureDom() {
     else if (!state.open) openPanel();
   });
 
-  // Opening by mouse has to go through focus() rather than the browser's own
-  // caret placement. Otherwise the mouseup that follows collapses the selection
+  // One handler for the WHOLE field, chevron and padding included. Hanging it
+  // on the input alone left dead zones — the field's padding and the gap beside
+  // the chevron swallowed clicks and the control just sat there, which is what
+  // made opening feel sticky.
+  //
+  // Opening by mouse routes through focus() rather than the browser's own caret
+  // placement: otherwise the mouseup that follows collapses the selection
   // openPanel just made, and the first keystroke APPENDS to the current value
-  // instead of replacing it — so the filter searched for
-  // "Development\SalesforceX" and matched nothing.
-  dom.input.addEventListener("mousedown", (event) => {
-    if (document.activeElement === dom.input) return;
-    event.preventDefault();
-    dom.input.focus();
+  // instead of replacing it. Once open, clicks in the text are left alone so
+  // the caret can be placed normally.
+  dom.field.addEventListener("mousedown", (event) => {
+    if (state.pickerStyle === "dialog") {
+      event.preventDefault();
+      openDialog();
+      return;
+    }
+    if (event.target === dom.chevron) {
+      event.preventDefault();
+      if (state.open) closePanel();
+      else openPanel();
+      return;
+    }
+    if (!state.open) {
+      event.preventDefault();
+      openPanel();
+    }
   });
 
   dom.input.addEventListener("input", () => {
@@ -424,13 +436,6 @@ function captureDom() {
     }
   });
 
-  // The chevron toggles without stealing focus from the input, so clicking it
-  // while open does not immediately reopen through the focus handler.
-  dom.chevron.addEventListener("mousedown", (event) => {
-    event.preventDefault();
-    togglePanel();
-  });
-
   // Clicking INSIDE the panel must never blur the field. Without this, clicking
   // a row's chevron — which is not focusable — dropped focus to nowhere, the
   // focusout below read that as leaving the control, and the panel shut before
@@ -441,11 +446,20 @@ function captureDom() {
   dom.clear.addEventListener("click", clearValue);
 
   // Leaving the control entirely — not merely moving between its own parts —
-  // is what commits the typing. A null relatedTarget means focus left the
-  // document altogether, which counts.
+  // is what commits the typing.
+  //
+  // The check is deferred one tick on purpose. Re-rendering the tree replaces
+  // its rows, so the focused row is destroyed and focus falls to the body,
+  // firing focusout with a null relatedTarget: indistinguishable, in the moment,
+  // from the user clicking away. That is why expanding a branch with the arrow
+  // keys used to shut the whole panel. By the next tick the render has finished
+  // and focus is back on the restored row, so asking where focus actually
+  // ENDED UP answers the real question.
   dom.root.addEventListener("focusout", (event) => {
     if (dom.root.contains(event.relatedTarget)) return;
-    closePanel({ commit: true });
+    setTimeout(() => {
+      if (!dom.root.contains(document.activeElement)) closePanel({ commit: true });
+    }, 0);
   });
 
   // Clicking elsewhere in the FORM, outside this iframe: the frame cannot see
