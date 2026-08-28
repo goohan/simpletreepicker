@@ -44,6 +44,8 @@ const state = {
   open: false,
   /** "inline" (panel that pushes) or "dialog" (host dialog that floats). */
   pickerStyle: "inline",
+  /** The row the arrows are walking, so focus survives a re-render. */
+  focusedPath: "",
 };
 
 let formService = null;
@@ -56,6 +58,12 @@ const dom = {};
  * dialog cannot drift apart in look or behavior.
  */
 function renderTree() {
+  // Every render replaces the rows, so keyboard focus would land back on the
+  // body and arrow navigation would restart from the top after each expand.
+  // Only restore it when focus was already in the tree — otherwise a keystroke
+  // in the field would yank the caret out from under the typist.
+  const hadFocusInTree = dom.tree.contains(document.activeElement);
+
   renderTreeInto(dom.tree, {
     tree: state.tree,
     value: state.value,
@@ -67,7 +75,34 @@ function renderTree() {
     emptyMessage:
       "This field has no values to pick from. Add them to the field's picklist, or to the control's Paths input.",
   });
+
+  if (hadFocusInTree) rowFor(state.focusedPath)?.focus();
   requestHeight();
+}
+
+/** The rendered row for a path, if it is currently on screen. */
+function rowFor(path) {
+  if (!path) return null;
+  return dom.tree.querySelector(`.stp-row[data-path="${CSS.escape(path)}"]`);
+}
+
+/** The rows the arrow keys walk: those on screen that can be acted on. */
+function focusableRows() {
+  return [...dom.tree.querySelectorAll(".stp-row[tabindex]")];
+}
+
+function moveFocus(delta) {
+  const rows = focusableRows();
+  if (rows.length === 0) return;
+  const index = rows.indexOf(document.activeElement);
+  const next =
+    index < 0
+      ? delta > 0
+        ? 0
+        : rows.length - 1
+      : Math.min(rows.length - 1, Math.max(0, index + delta));
+  state.focusedPath = rows[next].dataset.path;
+  rows[next].focus();
 }
 
 function renderHeader() {
@@ -142,6 +177,7 @@ function resetExpansion() {
 function openPanel() {
   state.open = true;
   state.filter = "";
+  state.focusedPath = "";
   // Each opening starts from the same place: only the path to the current
   // value, never whatever was left expanded last time.
   resetExpansion();
@@ -183,6 +219,7 @@ async function closePanel({ commit = true } = {}) {
   if (commit) await commitTyped();
   state.open = false;
   state.filter = "";
+  state.focusedPath = "";
   render();
 }
 
@@ -264,6 +301,7 @@ async function select(path) {
   // form gets its space back without the user asking twice.
   state.open = false;
   state.filter = "";
+  state.focusedPath = "";
   render();
 }
 
@@ -335,17 +373,52 @@ function captureDom() {
     else if (!state.open) openPanel();
   });
 
+  // Opening by mouse has to go through focus() rather than the browser's own
+  // caret placement. Otherwise the mouseup that follows collapses the selection
+  // openPanel just made, and the first keystroke APPENDS to the current value
+  // instead of replacing it — so the filter searched for
+  // "Development\SalesforceX" and matched nothing.
+  dom.input.addEventListener("mousedown", (event) => {
+    if (document.activeElement === dom.input) return;
+    event.preventDefault();
+    dom.input.focus();
+  });
+
   dom.input.addEventListener("input", () => {
     state.filter = dom.input.value;
     state.open = true;
     render();
   });
 
-  dom.input.addEventListener("keydown", (event) => {
+  // Keyboard for the whole control, not just the field: the arrows have to work
+  // once focus has walked into the tree, and Escape has to close from anywhere.
+  dom.root.addEventListener("keydown", (event) => {
+    const inTree = dom.tree.contains(event.target);
+
     if (event.key === "Escape") {
       event.preventDefault();
       closePanel({ commit: false });
-    } else if (event.key === "Enter") {
+      dom.input.focus();
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!state.open) openPanel();
+      moveFocus(event.key === "ArrowDown" ? 1 : -1);
+      return;
+    }
+    // On a branch row the side arrows open and close it, as a tree should.
+    if (inTree && (event.key === "ArrowRight" || event.key === "ArrowLeft")) {
+      const path = event.target.dataset.path;
+      const wantOpen = event.key === "ArrowRight";
+      if (path && state.expanded.has(path) !== wantOpen) {
+        event.preventDefault();
+        state.focusedPath = path;
+        toggleExpanded(path);
+      }
+      return;
+    }
+    if (event.key === "Enter" && !inTree) {
       event.preventDefault();
       closePanel({ commit: true });
     }
@@ -357,6 +430,13 @@ function captureDom() {
     event.preventDefault();
     togglePanel();
   });
+
+  // Clicking INSIDE the panel must never blur the field. Without this, clicking
+  // a row's chevron — which is not focusable — dropped focus to nowhere, the
+  // focusout below read that as leaving the control, and the panel shut before
+  // the click could expand anything. It is why expanding a node appeared to
+  // pick it and close.
+  dom.panel.addEventListener("mousedown", (event) => event.preventDefault());
 
   dom.clear.addEventListener("click", clearValue);
 

@@ -60,6 +60,7 @@ function renderList(nodes, depth, filtering, options) {
     row.className = "stp-row";
     if (selected) row.classList.add("is-selected");
     if (!node.selectable) row.classList.add("is-group");
+    row.dataset.path = node.path;
     row.style.paddingLeft = `${depth * INDENT_PX + 4}px`;
     row.title = node.selectable ? node.path : `${node.path} — grouping only, not a valid value`;
 

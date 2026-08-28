@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.3.2
+
+Three problems that arrived together with 0.3.0's typing, all of them about focus:
+
+- **Fixed: clicking a node's chevron picked the node and closed the panel** instead of expanding it. A chevron is not focusable, so clicking one dropped focus out of the field with nowhere to land; the handler that closes the panel when you leave the control read that as leaving and shut it before the click could do its work. Clicking inside the panel no longer moves focus at all.
+- **Fixed: the first keystroke appended to the value instead of replacing it**, so the filter searched for things like `Development\SalesforceX` and matched nothing. Opening selects the text, but the mouseup that follows a click collapses that selection — opening by mouse now goes through `focus()` rather than the browser's own caret placement.
+- **Arrow keys navigate the tree.** Up and Down walk the visible rows, Right and Left open and close a branch, `Enter` picks, `Escape` closes. Focus survives expanding and collapsing, rather than restarting from the top after every re-render.
+
 ## 0.3.1
 
 - **The layout configuration shows labels for the inputs.** They carried `description`, which only reaches the ⓘ tooltip, but no `name` — which is what the configuration UI uses as the label — so an admin adding the control met three nameless boxes: `Field`, `Picker style` and `Paths (fallback)`.
