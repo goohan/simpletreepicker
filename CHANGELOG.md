@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.2.2
+
+- **Fixed: the `dialog` style opened an empty dialog.** The content contribution was declared as `ms.vss-web.control`; the type the host resolves for dialog and panel content is `ms.vss-web.external-content`. The host drew the dialog frame and title and then found nothing to put in it.
+- The dialog page now fills its frame: the filter stays at the top and the tree takes the remaining height and scrolls inside it.
+- **Nothing at rest, like the native field.** The closed control no longer wears a grey fill and a border — it was reading as a button, which no Azure DevOps form field does. The field affordance now appears on hover and while open, the way ADO's own borderless combos behave. The padding is unchanged between states, so the value never shifts.
+
 ## 0.2.1
 
 - **Dressed as the native picklist.** The closed control now wears the same fill, hairline, height and caret as an Azure DevOps combo, and the open panel is a callout — its own surface, border and depth shadow — instead of bare text on the form.

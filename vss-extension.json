@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "simpletreepicker",
   "publisher": "goohan",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "name": "Simple Tree Picker",
   "description": "Work item form control that renders a flat list of backslash-separated paths as a tree and stores the full path of the node you pick.",
   "public": true,
@@ -121,7 +121,7 @@
     },
     {
       "id": "simple-tree-picker-dialog",
-      "type": "ms.vss-web.control",
+      "type": "ms.vss-web.external-content",
       "description": "The tree, rendered inside a dialog the host draws over the form. Opened by the control when its PickerStyle input is 'dialog'.",
       "targets": [],
       "properties": {

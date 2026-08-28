@@ -2,7 +2,7 @@
   "name": "simpletreepicker",
   "displayName": "Simple Tree Picker",
   "description": "Azure DevOps work item form control that renders a flat list of backslash-separated paths as a tree and stores the full path of the node you pick.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "goohan",
   "license": "MIT",
   "private": true,

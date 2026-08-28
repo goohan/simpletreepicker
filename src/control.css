@@ -63,8 +63,12 @@ body {
   gap: 2px;
 }
 
-/* Closed, this is the whole control, and it is dressed as the native combo:
-   same fill, same hairline, same caret on the right. */
+/* Closed, this is the whole control, and it wears what the native work item
+   form field wears: NOTHING at rest — no fill, no border, no button look, just
+   the value sitting on the form. The field affordance appears on hover and
+   while open, which is the behaviour of Azure DevOps' own borderless combos.
+   The border is transparent rather than absent, and the padding never changes,
+   so the text does not shift by a pixel when the affordance appears. */
 .stp-toggle {
   flex: 1 1 auto;
   min-width: 0;
@@ -72,22 +76,25 @@ body {
   align-items: center;
   gap: 6px;
   height: 30px;
-  padding: 0 8px;
+  padding: 0 6px;
   font: inherit;
   color: inherit;
   text-align: left;
-  background: var(--stp-field);
-  border: 1px solid var(--stp-line);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 2px;
   cursor: pointer;
 }
 
 .stp-toggle:hover {
-  border-color: var(--stp-muted);
+  background: var(--stp-field);
+  border-color: var(--stp-line);
 }
 
-.stp-toggle:focus-visible {
+.stp-toggle:focus-visible,
+.stp-toggle[aria-expanded="true"] {
   outline: none;
+  background: var(--stp-field);
   border-color: var(--stp-focus);
 }
 

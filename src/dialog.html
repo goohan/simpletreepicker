@@ -6,10 +6,13 @@
     <title>Simple Tree Picker</title>
     <link rel="stylesheet" href="control.css" />
     <style>
-      /* The dialog owns its whole frame, so the tree gets the room the host gave
-         it rather than the inline panel's cap. */
-      body { padding: 8px; }
-      .stp-tree { max-height: none; }
+      /* The dialog owns its whole frame, so the layout fills it: the filter
+         stays put at the top and the tree takes whatever height is left and
+         scrolls inside it, rather than carrying the inline panel's fixed cap. */
+      html, body { height: 100%; overflow: hidden; }
+      body { padding: 8px; box-sizing: border-box; }
+      #stp-root { height: 100%; }
+      .stp-tree { flex: 1 1 auto; max-height: none; }
     </style>
   </head>
   <body>
