@@ -124,10 +124,10 @@ npm run package   # builds, then produces the .vsix with tfx-cli
 
 `src/tree.js` holds the domain (parsing, tree building, filtering) with no dependency on the SDK or the DOM, which is what makes it testable outside a browser. `src/control.js` is the glue to the work item form.
 
-## Credits
-
-The icon is [Organization icons created by Magnific - Flaticon](https://www.flaticon.com/free-icons/organization).
-
 ## License
 
-MIT — see [LICENSE.md](LICENSE.md). The icon is not covered by it: see Credits above for its own terms.
+[MIT](LICENSE.md)
+
+## Credits
+
+The icon for this extension is based on the Flaticon library: [Organization icons created by Magnific - Flaticon](https://www.flaticon.com/free-icons/organization)
