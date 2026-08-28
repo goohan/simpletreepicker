@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.2.4
+
+- **Fixed: a stray wedge stuck to the field's chevron.** 0.2.3 started drawing the chevron in CSS but left the old `▾` character sitting in the markup, so the glyph was rotated 45° along with the box it was inside. The span is empty now.
+- **The tree's expanders use the field's chevron.** They were a tiny filled triangle from a font, which read as a different widget next to the CSS-drawn one; both are now the same shape and weight.
+- **The dialog is roomy.** It had `height: 100%`, so the content had no height of its own and simply filled whatever the host handed out — a tree three rows tall. The tree now has a real height, and the page asks the host to match it.
+
 ## 0.2.3
 
 Matched against screenshots of the native field in all four of its states, rather than from memory:

@@ -44,6 +44,17 @@ function closeDialog(result) {
   return false;
 }
 
+/**
+ * Asks the host to size the dialog to the tree. Measures the root element, not
+ * the document: inside a frame, `documentElement.scrollHeight` reports
+ * max(content, viewport), which means the frame being sized — the same trap
+ * that made the inline control able to grow but never shrink.
+ */
+function requestHeight() {
+  const root = document.getElementById("stp-root");
+  SDK.resize(undefined, Math.ceil(root.getBoundingClientRect().height) + 24);
+}
+
 function render() {
   renderTreeInto(dom.tree, {
     tree: state.tree,
@@ -94,6 +105,7 @@ async function main() {
   });
 
   render();
+  requestHeight();
   await SDK.notifyLoadSucceeded();
   dom.filter.focus();
 }

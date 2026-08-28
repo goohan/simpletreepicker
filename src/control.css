@@ -266,11 +266,26 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 2px;
-  font-size: 10px;
-  color: var(--stp-muted);
+  color: var(--stp-text);
+}
+
+/* The same chevron the field wears, so the control speaks one visual language:
+   drawn from two borders rather than a glyph. A font's triangle came out tiny
+   and filled next to it, which read as a different widget altogether. */
+.stp-twisty.is-clickable::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateX(-2px) rotate(-45deg);
+}
+
+.stp-twisty.is-expanded::before {
+  transform: translateY(-2px) rotate(45deg);
 }
 
 .stp-twisty.is-clickable {
@@ -279,7 +294,6 @@ body {
 
 .stp-twisty.is-clickable:hover {
   background: rgba(var(--palette-neutral-10, 218, 218, 218), 1);
-  color: var(--stp-text);
 }
 
 .stp-label {

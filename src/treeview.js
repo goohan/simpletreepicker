@@ -63,13 +63,15 @@ function renderList(nodes, depth, filtering, options) {
     row.style.paddingLeft = `${depth * INDENT_PX + 4}px`;
     row.title = node.selectable ? node.path : `${node.path} — grouping only, not a valid value`;
 
-    // The twisty keeps its footprint even with no glyph, so labels line up at a
-    // given depth whether or not the node has children.
+    // The twisty keeps its footprint even with no chevron, so labels line up at
+    // a given depth whether or not the node has children. The chevron itself is
+    // drawn in CSS, the same shape and weight as the field's own — a font glyph
+    // gave a tiny filled triangle that read as a different language entirely.
     const twisty = document.createElement("span");
     twisty.className = "stp-twisty";
     if (hasChildren) {
       twisty.classList.add("is-clickable");
-      twisty.textContent = expanded ? "▾" : "▸";
+      if (expanded) twisty.classList.add("is-expanded");
       twisty.setAttribute("role", "button");
       twisty.setAttribute("aria-label", expanded ? "Collapse" : "Expand");
       twisty.addEventListener("click", (event) => {
