@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.3.1
+
+- **The layout configuration shows labels for the inputs.** They had , which only reaches the ⓘ tooltip, but no  — which is what the configuration UI uses as the label — so an admin adding the control met three nameless boxes.
+
 ## 0.3.0
 
 - **You can type in the field**, as the native picklist lets you. The separate filter box is gone: the field itself is the search, and the tree narrows as you type. What leaving the control does with what you typed — a match becomes the value, no match leaves the previous value untouched, an emptied field clears it — so the field always holds a real node or nothing. `Escape` cancels and restores the previous value.
