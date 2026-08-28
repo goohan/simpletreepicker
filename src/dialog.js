@@ -62,7 +62,7 @@ function render() {
     filter: state.filter,
     expanded: state.expanded,
     orphan: state.orphan,
-    preselected: findFirstMatch(state.tree, state.filter),
+    active: findFirstMatch(state.tree, state.filter),
     onSelect: pick,
     onToggle: (path) => {
       if (state.expanded.has(path)) state.expanded.delete(path);
@@ -103,6 +103,15 @@ async function main() {
   dom.filter.addEventListener("input", () => {
     state.filter = dom.filter.value;
     render();
+  });
+
+  // Escape leaves exactly as clicking outside does — closing with no result, so
+  // the control keeps the value it already had. A dialog that traps you until
+  // you pick something would be worse than the panel it replaced.
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    closeDialog(undefined);
   });
 
   render();

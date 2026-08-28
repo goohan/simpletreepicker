@@ -17,13 +17,16 @@ const INDENT_PX = 16;
  * @param {string} options.filter    the filter term
  * @param {Set}    options.expanded  paths whose children are showing
  * @param {boolean} options.orphan   the value is not among the declared paths
- * @param {string} options.preselected  the node a bare Enter would settle on
+ * @param {string} options.active    the highlighted node — the one Enter settles on
  * @param {(path: string) => void} options.onSelect
  * @param {(path: string) => void} options.onToggle
  * @param {string} options.emptyMessage  shown when there is nothing to pick from
  */
 export function renderTreeInto(container, options) {
   const { tree, filter, emptyMessage } = options;
+  // Rows are addressable so the field can point at the active one through
+  // aria-activedescendant while keeping the caret to itself.
+  options.__seq = 0;
   const filtering = String(filter ?? "").trim().length > 0;
   const nodes = filterTree(tree, filter ?? "");
 
@@ -40,7 +43,7 @@ export function renderTreeInto(container, options) {
 }
 
 function renderList(nodes, depth, filtering, options) {
-  const { value, expanded: expandedPaths, orphan, preselected, onSelect, onToggle } = options;
+  const { value, expanded: expandedPaths, orphan, active, onSelect, onToggle } = options;
 
   const list = document.createElement("ul");
   list.className = "stp-list";
@@ -60,8 +63,9 @@ function renderList(nodes, depth, filtering, options) {
     const row = document.createElement("div");
     row.className = "stp-row";
     if (selected) row.classList.add("is-selected");
-    else if (node.path === preselected) row.classList.add("is-preselected");
+    if (node.path === active) row.classList.add("is-active");
     if (!node.selectable) row.classList.add("is-group");
+    row.id = `stp-node-${options.__seq++}`;
     row.dataset.path = node.path;
     row.style.paddingLeft = `${depth * INDENT_PX + 4}px`;
     row.title = node.selectable ? node.path : `${node.path} — grouping only, not a valid value`;
@@ -104,22 +108,19 @@ function renderList(nodes, depth, filtering, options) {
 
     // A selectable node picks; a grouping node with children can only open and
     // close, which is also what its whole row does since it has nothing else to do.
+    //
+    // No tabIndex, and no key handling here: the field keeps the focus the whole
+    // time, exactly as a native combo does, and the keys are read there. Rows
+    // that could take focus were the root of a whole family of bugs — a
+    // re-render destroyed the focused row and every listener read that as the
+    // user walking away.
     const activate = node.selectable
       ? () => onSelect(node.path)
       : hasChildren
         ? () => onToggle(node.path)
         : null;
 
-    if (activate) {
-      row.tabIndex = 0;
-      row.addEventListener("click", activate);
-      row.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          activate();
-        }
-      });
-    }
+    if (activate) row.addEventListener("click", activate);
 
     item.append(row);
     if (hasChildren && expanded) item.append(renderList(node.children, depth + 1, filtering, options));

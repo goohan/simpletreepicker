@@ -44,8 +44,9 @@ const state = {
   open: false,
   /** "inline" (panel that pushes) or "dialog" (host dialog that floats). */
   pickerStyle: "inline",
-  /** The row the arrows are walking, so focus survives a re-render. */
-  focusedPath: "",
+  /** The highlighted row. The caret never leaves the field, so "where the
+   *  arrows are" is state, not focus — the native combo pattern. */
+  activePath: "",
 };
 
 let formService = null;
@@ -58,29 +59,19 @@ const dom = {};
  * dialog cannot drift apart in look or behavior.
  */
 function renderTree() {
-  // Every render replaces the rows, so keyboard focus would land back on the
-  // body and arrow navigation would restart from the top after each expand.
-  // Only restore it when focus was already in the tree — otherwise a keystroke
-  // in the field would yank the caret out from under the typist.
-  const hadFocusInTree = dom.tree.contains(document.activeElement);
-
   renderTreeInto(dom.tree, {
     tree: state.tree,
     value: state.value,
     filter: state.filter,
     expanded: state.expanded,
     orphan: state.orphan,
-    // The node Enter would land on, shown while you are still typing so the
-    // outcome is visible before you commit to it.
-    preselected: findFirstMatch(state.tree, state.filter),
+    active: state.activePath,
     onSelect: select,
     onToggle: toggleExpanded,
     emptyMessage:
       "This field has no values to pick from. Add them to the field's picklist, or to the control's Paths input.",
   });
-
-  if (hadFocusInTree) rowFor(state.focusedPath)?.focus();
-  else rowFor(findFirstMatch(state.tree, state.filter))?.scrollIntoView({ block: "nearest" });
+  revealActive();
   requestHeight();
 }
 
@@ -90,23 +81,42 @@ function rowFor(path) {
   return dom.tree.querySelector(`.stp-row[data-path="${CSS.escape(path)}"]`);
 }
 
-/** The rows the arrow keys walk: those on screen that can be acted on. */
-function focusableRows() {
-  return [...dom.tree.querySelectorAll(".stp-row[tabindex]")];
+/** Every row on screen, in reading order — what the arrows walk. */
+function visibleRows() {
+  return [...dom.tree.querySelectorAll(".stp-row")];
 }
 
-function moveFocus(delta) {
-  const rows = focusableRows();
+/**
+ * Scrolls the active row into view and tells assistive technology which row the
+ * field is pointing at. The caret stays in the input throughout, which is the
+ * odd-looking trick native comboboxes use: you keep typing while the arrows
+ * walk the list, because the list never takes the focus.
+ */
+function revealActive() {
+  const row = rowFor(state.activePath);
+  if (row) {
+    row.scrollIntoView({ block: "nearest" });
+    dom.input.setAttribute("aria-activedescendant", row.id);
+  } else {
+    dom.input.removeAttribute("aria-activedescendant");
+  }
+}
+
+/** Moves the highlight without a full re-render, so arrowing stays smooth. */
+function moveActive(delta) {
+  const rows = visibleRows();
   if (rows.length === 0) return;
-  const index = rows.indexOf(document.activeElement);
+  const index = rows.findIndex((row) => row.dataset.path === state.activePath);
   const next =
     index < 0
       ? delta > 0
         ? 0
         : rows.length - 1
       : Math.min(rows.length - 1, Math.max(0, index + delta));
-  state.focusedPath = rows[next].dataset.path;
-  rows[next].focus();
+
+  state.activePath = rows[next].dataset.path;
+  for (const row of rows) row.classList.toggle("is-active", row === rows[next]);
+  revealActive();
 }
 
 function renderHeader() {
@@ -181,7 +191,9 @@ function resetExpansion() {
 function openPanel() {
   state.open = true;
   state.filter = "";
-  state.focusedPath = "";
+  // The arrows start where the selection is, not at the top of the list: with
+  // a value already set, walking from the first root would be a chore.
+  state.activePath = state.value;
   // Each opening starts from the same place: only the path to the current
   // value, never whatever was left expanded last time.
   resetExpansion();
@@ -214,6 +226,24 @@ async function commitTyped() {
 }
 
 /**
+ * What Enter and Tab do: take the highlighted node. A group only opens and
+ * closes, so landing on one toggles it instead of pretending to pick it; with
+ * nothing highlighted this falls back to resolving whatever was typed.
+ */
+async function commitActive() {
+  const path = state.activePath;
+  if (path && state.paths.includes(path)) {
+    await select(path);
+    return;
+  }
+  if (path && rowFor(path)) {
+    toggleExpanded(path);
+    return;
+  }
+  await closePanel({ commit: true });
+}
+
+/**
  * @param {boolean} commit  false cancels — Escape restores the previous value
  *   rather than committing the typing, because losing a value by pressing
  *   Escape would be a surprise. Every other way of leaving commits.
@@ -223,7 +253,7 @@ async function closePanel({ commit = true } = {}) {
   if (commit) await commitTyped();
   state.open = false;
   state.filter = "";
-  state.focusedPath = "";
+  state.activePath = "";
   render();
 }
 
@@ -296,7 +326,7 @@ async function select(path) {
   // form gets its space back without the user asking twice.
   state.open = false;
   state.filter = "";
-  state.focusedPath = "";
+  state.activePath = "";
   render();
 }
 
@@ -399,41 +429,77 @@ function captureDom() {
   dom.input.addEventListener("input", () => {
     state.filter = dom.input.value;
     state.open = true;
+    // The highlight follows the search, so Enter and Tab always have something
+    // to take and you can see what it is before you take it.
+    state.activePath = findFirstMatch(state.tree, state.filter) || state.value;
     render();
   });
 
-  // Keyboard for the whole control, not just the field: the arrows have to work
-  // once focus has walked into the tree, and Escape has to close from anywhere.
-  dom.root.addEventListener("keydown", (event) => {
-    const inTree = dom.tree.contains(event.target);
-
+  // All of it read in the field, which never gives up the caret. Rows are not
+  // focusable any more, so there is nothing else for these keys to reach.
+  dom.input.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       event.preventDefault();
       closePanel({ commit: false });
-      dom.input.focus();
       return;
     }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       if (!state.open) openPanel();
-      moveFocus(event.key === "ArrowDown" ? 1 : -1);
+      else moveActive(event.key === "ArrowDown" ? 1 : -1);
       return;
     }
-    // On a branch row the side arrows open and close it, as a tree should.
-    if (inTree && (event.key === "ArrowRight" || event.key === "ArrowLeft")) {
-      const path = event.target.dataset.path;
+    if (state.open && (event.key === "ArrowRight" || event.key === "ArrowLeft")) {
       const wantOpen = event.key === "ArrowRight";
-      if (path && state.expanded.has(path) !== wantOpen) {
+      const path = state.activePath;
+      if (path && rowFor(path)?.querySelector(".stp-twisty.is-clickable") && state.expanded.has(path) !== wantOpen) {
         event.preventDefault();
-        state.focusedPath = path;
         toggleExpanded(path);
       }
       return;
     }
-    if (event.key === "Enter" && !inTree) {
+    // Enter and Tab do the same thing, the way an editor's completion list
+    // behaves: they take the highlighted item rather than moving on. Tab
+    // getting preventDefault is the whole point — otherwise it would leave for
+    // the next field and the highlight would go unclaimed.
+    if (event.key === "Enter" || event.key === "Tab") {
       event.preventDefault();
-      closePanel({ commit: true });
+      commitActive();
     }
+  });
+
+  // One handler for the WHOLE field, chevron and padding included. Hanging it
+  // on the input alone left dead zones — the field's padding and the gap beside
+  // the chevron swallowed clicks and the control just sat there, which is what
+  // made opening feel sticky.
+  //
+  // Opening by mouse routes through focus() rather than the browser's own caret
+  // placement: otherwise the mouseup that follows collapses the selection
+  // openPanel just made, and the first keystroke APPENDS to the current value
+  // instead of replacing it. Once open, clicks in the text are left alone so
+  // the caret can be placed normally.
+  dom.field.addEventListener("mousedown", (event) => {
+    if (state.pickerStyle === "dialog") {
+      event.preventDefault();
+      openDialog();
+      return;
+    }
+    if (event.target === dom.chevron) {
+      event.preventDefault();
+      if (state.open) closePanel();
+      else openPanel();
+      return;
+    }
+    if (!state.open) {
+      event.preventDefault();
+      openPanel();
+    }
+  });
+
+  dom.input.addEventListener("input", () => {
+    state.filter = dom.input.value;
+    state.open = true;
+    render();
   });
 
   // Clicking INSIDE the panel must never blur the field. Without this, clicking

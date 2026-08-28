@@ -2,7 +2,13 @@
 
 An Azure DevOps **work item form control** that turns a flat list of paths into a tree you can pick from, and stores the **full path** of the node you pick.
 
+![The control open on a work item form, showing the tree and the node currently selected](https://raw.githubusercontent.com/goohan/simpletreepicker/main/assets/screenshot-first-look.png)
+
 Azure DevOps ships exactly two tree fields — Area Path and Iteration Path — and you cannot create a third one. Any other hierarchical classification (module, product line, cost center, service catalog) ends up as a flat picklist where `ErpCloud\Web App\Treasury` sits next to forty siblings and the shape is left for the reader to reconstruct. This control gives that shape back without inventing a new field type: you keep a perfectly ordinary text field, and the hierarchy lives in the values themselves.
+
+## See it in action
+
+![Opening the picker, expanding branches and selecting a node](https://raw.githubusercontent.com/goohan/simpletreepicker/main/assets/screenshot-picker-in-action.gif)
 
 ## The model
 
@@ -38,7 +44,11 @@ Two rules carry the whole design:
 
 1. **Install the extension** in your organization.
 1. **Create the field** in your process (Organization settings → Process → your process → work item type → New field). Use type **Picklist (string)** and enter the paths as its allowed values. A picklist is strongly recommended over a plain text field: the tree is read straight from it, and the server then validates the value for every path into the work item — REST, CSV import, bulk edit — not just this control.
-1. **Add the control to the layout** (same work item type → Layout tab → **+** on a group → **Custom control** → *Simple Tree Picker*), set its **FieldName** input to the field you just created, and save. If the field is already on the layout as a normal dropdown, remove that copy so the field has one editor.
+1. **Add the control to the layout** (same work item type → Layout tab → **+** on a group → **Custom control** → *Simple Tree Picker*), set its **Field** input to the field you just created, and save. If the field is already on the layout as a normal dropdown, remove that copy so the field has one editor.
+
+The field is an ordinary picklist whose values happen to be paths — nothing about it is special:
+
+![A picklist field whose allowed values are backslash-separated paths](https://raw.githubusercontent.com/goohan/simpletreepicker/main/assets/screenshot-field-config.png)
 
 ### Inputs
 

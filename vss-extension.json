@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "simpletreepicker",
   "publisher": "goohan",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "name": "Simple Tree Picker",
   "description": "Work item form control that renders a flat list of backslash-separated paths as a tree and stores the full path of the node you pick.",
   "public": true,
@@ -55,7 +55,7 @@
       "addressable": true
     },
     {
-      "path": "assets",
+      "path": "assets/icon.png",
       "addressable": true
     }
   ],

@@ -263,7 +263,7 @@ body {
 /* While typing, the node that Enter — or simply leaving the control — would
    settle on. Ringed rather than filled, so it never passes for the real
    selection sitting elsewhere in the tree. */
-.stp-row.is-preselected {
+.stp-row.is-active {
   border-color: var(--stp-accent);
 }
 

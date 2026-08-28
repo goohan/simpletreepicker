@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.3.4
+
+- **The keyboard now works the way a combo box does.** The caret stays in the field while the arrows walk the list — the odd-looking trick every native picker uses, so you can keep typing without ever leaving the text. Rows are no longer focusable at all, which removes a whole family of bugs at the source: a re-render used to destroy the focused row and every listener read that as the user walking away.
+- **Arrowing starts at the current selection**, not at the top of the list.
+- **`Tab` confirms, like `Enter`.** It takes the highlighted node instead of leaving for the next field, the way an editor's completion list behaves.
+- **`Escape` closes the dialog style**, exactly as clicking outside it does — with no result, so the field keeps the value it had.
+- Screenshots in the README, and they no longer ride along inside the package: only the icon does, which keeps it at 41 KB instead of 1.2 MB.
+
 ## 0.3.3
 
 - **Typing preselects the first match.** The node that `Enter` — or simply leaving the control — would settle on is ringed in the accent as you type, and scrolled into view, so the outcome is visible before you commit to it.
