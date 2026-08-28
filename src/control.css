@@ -66,10 +66,10 @@ body {
 /* Closed, this is the whole control, and it wears what the native work item
    form field wears: NOTHING at rest — no fill, no border, no button look, just
    the value sitting on the form. The field affordance appears on hover and
-   while open, which is the behaviour of Azure DevOps' own borderless combos.
+   while open, which is the behavior of Azure DevOps' own borderless combos.
    The border is transparent rather than absent, and the padding never changes,
    so the text does not shift by a pixel when the affordance appears. */
-.stp-toggle {
+.stp-field {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
@@ -86,7 +86,7 @@ body {
   cursor: pointer;
 }
 
-.stp-toggle:hover {
+.stp-field:hover {
   background: var(--stp-surface);
   border-color: rgba(var(--palette-neutral-30, 166, 166, 166), 1);
 }
@@ -94,26 +94,32 @@ body {
 /* Open and focused, the native combo shows a blue rule that reads about two
    pixels thick. Faking the second pixel with an inset shadow keeps the border
    at 1px, so nothing inside the field shifts when the state changes. */
-.stp-toggle:focus-visible,
-.stp-toggle[aria-expanded="true"] {
-  outline: none;
+.stp-field:focus-within,
+.stp-field.is-open {
   background: var(--stp-surface);
   border-color: var(--stp-focus);
   box-shadow: inset 0 0 0 1px var(--stp-focus);
 }
 
-.stp-value {
+/* The value is an input, not a label: typing in it filters the tree, the way
+   the native picklist lets you type in its primary control. It carries none of
+   the chrome — the wrapper above owns the border and the fill — so it reads as
+   plain text until the field is reached for. */
+.stp-input {
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  cursor: pointer;
 }
 
-/* Nothing to paint: an empty field shows an empty field. The class stays as a
-   state hook — for a placeholder, should one ever be wanted. */
-.stp-value.is-empty {
-  color: var(--stp-muted);
+.stp-field:focus-within .stp-input {
+  cursor: text;
 }
 
 /* Drawn with borders rather than a glyph: the native caret is a thin chevron,
@@ -131,13 +137,13 @@ body {
   opacity: 0;
 }
 
-.stp-toggle:hover .stp-chevron,
-.stp-toggle:focus-visible .stp-chevron,
-.stp-toggle[aria-expanded="true"] .stp-chevron {
+.stp-field:hover .stp-chevron,
+.stp-field:focus-within .stp-chevron,
+.stp-field.is-open .stp-chevron {
   opacity: 1;
 }
 
-.stp-toggle[aria-expanded="true"] .stp-chevron {
+.stp-field.is-open .stp-chevron {
   transform: translateY(1px) rotate(-135deg);
 }
 

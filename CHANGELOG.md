@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.3.0
+
+- **You can type in the field**, as the native picklist lets you. The separate filter box is gone: the field itself is the search, and the tree narrows as you type. What leaving the control does with what you typed — a match becomes the value, no match leaves the previous value untouched, an emptied field clears it — so the field always holds a real node or nothing. `Escape` cancels and restores the previous value.
+- Typing can only ever **pick**, never write free text. A picklist field rejects a value outside its list with a form-level error that blocks saving the work item, so free text would be a trap; `findFirstMatch` resolves what you typed to a real, selectable node or to nothing at all.
+- Matching now has one definition shared by the filter and by what typing resolves to. Notably, a match is never an ancestor that filtering merely kept in order to reach the real hit.
+
 ## 0.2.5
 
 - **An empty field shows an empty field**, not the words `(none)`. A native Azure DevOps field with no value renders nothing at all until you reach for it, and the label the form draws above the control already says which field it is.

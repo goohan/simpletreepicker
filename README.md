@@ -45,7 +45,7 @@ Two rules carry the whole design:
 |Input|Required|What it does|
 |---|---|---|
 |`FieldName`|yes|The field the control edits, and the field whose picklist the tree is read from.|
-|`PickerStyle`|no|`inline` (default) or `dialog` — see below. Anything unrecognised means `inline`.|
+|`PickerStyle`|no|`inline` (default) or `dialog` — see below. Anything unrecognized means `inline`.|
 |`Paths`|no|A fallback list — semicolons or new lines — used **only** when the field has no picklist. Handy for a quick trial on a plain text field; a picklist is the real setup.|
 
 ### Two ways to open
@@ -71,8 +71,16 @@ A picklist whose values contain no `\` renders as a flat list of roots — a har
 
 ## Behavior
 
-- **Opens and closes on demand** — closed, the control is a single line showing the current value. Click it and the filter and the tree appear; pick a node and it closes again, as do `Escape` and clicking away. Which way it opens is the `PickerStyle` input, above.
-- **Filter box** — matches on a node's name or on its full path, and keeps the branches that lead to a hit, so typing `A3\B` narrows to that branch.
+- **Opens and closes on demand** — closed, the control is a single line showing the current value. Click it and the tree appears; pick a node and it closes again, as do `Escape` and clicking away. Which way it opens is the `PickerStyle` input, above.
+- **Type in the field to filter** — as the native picklist lets you, matching on a node's name or its full path, keeping the branches that lead to a hit, so typing `A3\B` narrows to that branch. What happens when you leave the control mid-search:
+
+  |You typed|On leaving|
+  |---|---|
+  |Something that matches|The first matching node becomes the value|
+  |Something that matches nothing|Whatever was there before stands, untouched|
+  |Nothing — you emptied it|The value is cleared, same as pressing `✕`|
+
+  So the field always ends up holding a real node or nothing at all; typed text that means nothing never survives. `Escape` cancels instead, restoring the previous value, because losing a value to a stray keystroke would be a nasty surprise. This is also why typing can only ever *pick* — never write free text. A picklist field rejects a value outside its list with a form-level error (*"contains the value 'x' that is not in the list of supported values"*) that blocks saving the work item, and this control is built so it cannot put you there.
 - **Opens where you left off, not where you were** — each opening expands only the path down to the current value, so the tree never drifts towards permanently open.
 - **A value outside the list** — a path that was renamed or written by hand still shows up, selected and flagged `not in list`, rather than leaving the control blank while the field holds a value.
 - **Clear** — the `✕` next to the current value empties the field, for whenever the field is not required.

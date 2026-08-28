@@ -9,14 +9,13 @@
   <body>
     <div id="stp-root" class="stp">
       <div class="stp-header">
-        <button id="stp-toggle" class="stp-toggle" type="button" aria-expanded="false">
-          <span id="stp-value" class="stp-value"></span>
+        <div id="stp-field" class="stp-field">
+          <input id="stp-input" class="stp-input" type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off" spellcheck="false" />
           <span id="stp-chevron" class="stp-chevron" aria-hidden="true"></span>
-        </button>
+        </div>
         <button id="stp-clear" class="stp-button" type="button" title="Clear the value" hidden>&#10005;</button>
       </div>
       <div id="stp-panel" class="stp-panel" hidden>
-        <input id="stp-filter" class="stp-filter" type="search" placeholder="Filter&#8230;" autocomplete="off" spellcheck="false" />
         <div id="stp-tree" class="stp-tree"></div>
       </div>
       <p id="stp-message" class="stp-message" hidden></p>

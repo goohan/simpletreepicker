@@ -6,6 +6,7 @@ import {
   buildTree,
   ancestorsOf,
   filterTree,
+  findFirstMatch,
 } from "../src/tree.js";
 
 // The list from the original sketch: `A3\B` is never declared, only `A3\B\C`.
@@ -88,4 +89,25 @@ test("filterTree matches on the full path too, and keeps the subtree of a hit", 
 test("an empty term returns the tree untouched", () => {
   const roots = buildTree(SAMPLE);
   assert.equal(filterTree(roots, "  "), roots);
+});
+
+test("findFirstMatch returns the first selectable hit in reading order", () => {
+  const tree = buildTree(SAMPLE);
+  assert.equal(findFirstMatch(tree, "C"), "A\\B\\C");
+  assert.equal(findFirstMatch(tree, "A2"), "A2");
+  assert.equal(findFirstMatch(tree, "  "), "");
+  assert.equal(findFirstMatch(tree, "nothing here"), "");
+});
+
+test("findFirstMatch skips ancestors that only exist to reach the hit", () => {
+  // Filtering keeps `A` so `A\Erp` can be reached, and `A` is selectable — but
+  // it never matched "Erp", so it must not be what typing "Erp" selects.
+  const tree = buildTree(parsePaths(["A", "A\\Erp", "A\\ErpCloud"]));
+  assert.equal(findFirstMatch(tree, "Erp"), "A\\Erp");
+});
+
+test("findFirstMatch never returns a node that is not selectable", () => {
+  // `A3\B` exists as a branch but was never declared, so it cannot be a value.
+  const tree = buildTree(SAMPLE);
+  assert.equal(findFirstMatch(tree, "A3\\B"), "A3\\B\\C");
 });

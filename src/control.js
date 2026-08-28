@@ -13,7 +13,7 @@
 // a real form on 2026-08-27, which is what made this shape worth building.
 
 import * as SDK from "azure-devops-extension-sdk";
-import { parsePaths, buildTree, ancestorsOf, normalizePath } from "./tree.js";
+import { parsePaths, buildTree, ancestorsOf, findFirstMatch, normalizePath } from "./tree.js";
 import { renderTreeInto } from "./treeview.js";
 
 // Contribution ids of the two host services this control uses. Declared here
@@ -53,7 +53,7 @@ const dom = {};
 
 /**
  * The tree itself is drawn by the shared view, so the inline panel and the
- * dialog cannot drift apart in look or behaviour.
+ * dialog cannot drift apart in look or behavior.
  */
 function renderTree() {
   renderTreeInto(dom.tree, {
@@ -71,13 +71,15 @@ function renderTree() {
 }
 
 function renderHeader() {
-  // Empty means empty — no "(none)" placeholder. A native Azure DevOps field
-  // with no value shows nothing at all until you reach for it, and the label
-  // the form draws above the control already says which field this is.
-  dom.value.textContent = state.value;
-  dom.value.classList.toggle("is-empty", !state.value);
-  dom.toggle.title = state.value || "Pick a value";
-  dom.toggle.setAttribute("aria-expanded", String(state.open));
+  // The input mirrors the value, EXCEPT while the panel is open, when it
+  // belongs to whatever the user is typing.
+  if (!state.open) dom.input.value = state.value;
+  dom.input.title = state.value || "Pick a value";
+  dom.input.setAttribute("aria-expanded", String(state.open));
+  // Typing filters the inline tree; with the dialog style there is no inline
+  // tree to filter, so the field stays a button in all but name.
+  dom.input.readOnly = state.pickerStyle === "dialog";
+  dom.field.classList.toggle("is-open", state.open);
   dom.clear.hidden = !state.value;
   dom.message.textContent = state.message;
   dom.message.hidden = !state.message;
@@ -140,17 +142,47 @@ function resetExpansion() {
 function openPanel() {
   state.open = true;
   state.filter = "";
-  dom.filter.value = "";
   // Each opening starts from the same place: only the path to the current
   // value, never whatever was left expanded last time.
   resetExpansion();
   render();
-  dom.filter.focus();
+  dom.input.focus();
+  // Selected, so the first keystroke replaces the value — a native combo does
+  // the same, and it is what makes typing feel like searching rather than editing.
+  dom.input.select();
 }
 
-function closePanel() {
+/**
+ * What leaving the control does with whatever was typed. Johan's rules
+ * (2026-08-27), and the invariant behind them is that the field always ends up
+ * holding a real node or nothing at all — typed text that means nothing never
+ * survives the control losing focus:
+ *
+ *   emptied      -> the value is cleared, exactly as pressing the clear button
+ *   has a match  -> the first matching node becomes the value
+ *   no match     -> whatever was there before stands, untouched
+ */
+async function commitTyped() {
+  const typed = dom.input.value.trim();
+  if (typed === state.value) return;
+  if (typed === "") {
+    await setValue("");
+    return;
+  }
+  const match = findFirstMatch(state.tree, typed);
+  if (match) await setValue(match);
+}
+
+/**
+ * @param {boolean} commit  false cancels — Escape restores the previous value
+ *   rather than committing the typing, because losing a value by pressing
+ *   Escape would be a surprise. Every other way of leaving commits.
+ */
+async function closePanel({ commit = true } = {}) {
   if (!state.open) return;
+  if (commit) await commitTyped();
   state.open = false;
+  state.filter = "";
   render();
 }
 
@@ -208,33 +240,35 @@ function rebuildTree() {
   state.tree = buildTree(state.orphan ? [...state.paths, state.value] : state.paths);
 }
 
-async function select(path) {
+/**
+ * The single place the field is written, so every route into it — a click on a
+ * node, typed text, the clear button, the dialog — shares one error path.
+ */
+async function setValue(path) {
   if (path === state.value) return;
   try {
     await formService.setFieldValue(state.fieldName, path);
     state.value = path;
     rebuildTree();
     state.message = "";
-    // Picking is the whole point of having the panel open, so it closes —
-    // the form gets its space back without the user asking twice.
-    state.open = false;
   } catch (error) {
     // The usual cause is a read-only work item or field: report it in place
-    // instead of leaving the click silently doing nothing.
+    // instead of leaving the interaction silently doing nothing.
     state.message = `Could not set the value: ${error?.message ?? error}`;
   }
+}
+
+async function select(path) {
+  await setValue(path);
+  // Picking is the whole point of having the panel open, so it closes — the
+  // form gets its space back without the user asking twice.
+  state.open = false;
+  state.filter = "";
   render();
 }
 
 async function clearValue() {
-  try {
-    await formService.setFieldValue(state.fieldName, "");
-    state.value = "";
-    rebuildTree();
-    state.message = "";
-  } catch (error) {
-    state.message = `Could not clear the value: ${error?.message ?? error}`;
-  }
+  await setValue("");
   render();
 }
 
@@ -288,36 +322,59 @@ async function refresh() {
 function captureDom() {
   if (dom.root) return;
   dom.root = document.getElementById("stp-root");
-  dom.toggle = document.getElementById("stp-toggle");
-  dom.value = document.getElementById("stp-value");
+  dom.field = document.getElementById("stp-field");
+  dom.input = document.getElementById("stp-input");
+  dom.chevron = document.getElementById("stp-chevron");
   dom.clear = document.getElementById("stp-clear");
   dom.panel = document.getElementById("stp-panel");
-  dom.filter = document.getElementById("stp-filter");
   dom.tree = document.getElementById("stp-tree");
   dom.message = document.getElementById("stp-message");
 
-  dom.toggle.addEventListener("click", togglePanel);
-  dom.clear.addEventListener("click", clearValue);
-  dom.filter.addEventListener("input", () => {
-    state.filter = dom.filter.value;
-    renderTree();
+  dom.input.addEventListener("focus", () => {
+    if (state.pickerStyle === "dialog") openDialog();
+    else if (!state.open) openPanel();
   });
 
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && state.open) {
+  dom.input.addEventListener("input", () => {
+    state.filter = dom.input.value;
+    state.open = true;
+    render();
+  });
+
+  dom.input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
       event.preventDefault();
-      closePanel();
-      dom.toggle.focus();
+      closePanel({ commit: false });
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      closePanel({ commit: true });
     }
   });
 
-  // Clicking elsewhere in the form closes the panel, the way a dropdown would.
-  // The iframe cannot see clicks outside itself, but it does lose focus — and
-  // the timeout lets focus land inside the control first, since clicking a row
-  // blurs the window momentarily in some browsers.
+  // The chevron toggles without stealing focus from the input, so clicking it
+  // while open does not immediately reopen through the focus handler.
+  dom.chevron.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    togglePanel();
+  });
+
+  dom.clear.addEventListener("click", clearValue);
+
+  // Leaving the control entirely — not merely moving between its own parts —
+  // is what commits the typing. A null relatedTarget means focus left the
+  // document altogether, which counts.
+  dom.root.addEventListener("focusout", (event) => {
+    if (dom.root.contains(event.relatedTarget)) return;
+    closePanel({ commit: true });
+  });
+
+  // Clicking elsewhere in the FORM, outside this iframe: the frame cannot see
+  // that click, but it does lose focus. The timeout lets focus land inside the
+  // control first, since clicking a row blurs the window momentarily in some
+  // browsers.
   window.addEventListener("blur", () => {
     setTimeout(() => {
-      if (state.open && !document.hasFocus()) closePanel();
+      if (state.open && !document.hasFocus()) closePanel({ commit: true });
     }, 0);
   });
 }

@@ -92,6 +92,35 @@ export function ancestorsOf(path) {
   return ancestors;
 }
 
+/** Whether a node answers to a search term, by its own name or its full path. */
+function hits(node, needle) {
+  return node.name.toLowerCase().includes(needle) || node.path.toLowerCase().includes(needle);
+}
+
+/**
+ * The path of the first SELECTABLE node that matches the term, in the order the
+ * tree reads top to bottom. Empty string when nothing matches.
+ *
+ * Not the same as "the first node in the filtered tree": filtering keeps
+ * ancestors so the matches can be reached, and those ancestors are usually
+ * selectable themselves. Searching `Erp` under `A\Erp` would otherwise land on
+ * `A`, which never matched anything — so this walks for a real hit.
+ */
+export function findFirstMatch(nodes, term) {
+  const needle = String(term ?? "").trim().toLowerCase();
+  if (!needle) return "";
+
+  const walk = (list) => {
+    for (const node of list) {
+      if (node.selectable && hits(node, needle)) return node.path;
+      const found = walk(node.children);
+      if (found) return found;
+    }
+    return "";
+  };
+  return walk(nodes);
+}
+
 /**
  * Prunes the tree down to the branches that contain a match, keeping the
  * ancestors needed to reach them. A node matches on its own name or on its
@@ -105,9 +134,7 @@ export function filterTree(nodes, term) {
   const prune = (list) => {
     const kept = [];
     for (const node of list) {
-      const hit =
-        node.name.toLowerCase().includes(needle) ||
-        node.path.toLowerCase().includes(needle);
+      const hit = hits(node, needle);
       const children = hit ? node.children : prune(node.children);
       if (hit || children.length > 0) kept.push({ ...node, children });
     }
