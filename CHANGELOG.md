@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.0.2
+
+- **A bigger target on the tree's expanders.** They were a 20x20 square centred on a 30px row, leaving dead strips above and below the chevron. The target now fills the row height and is a little wider, the way the native Area and Iteration pickers behave. The drawn chevron is unchanged, so nothing looks different at rest.
+
 ## 1.0.1
 
 - **Fixed: `Tab` no longer swallows the key that walks the form.** With the picker closed it moves to the next control, as it always should have. Open, it still confirms the highlighted node.

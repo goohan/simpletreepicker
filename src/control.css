@@ -273,16 +273,22 @@ body {
   color: var(--stp-muted);
 }
 
-/* Keeps its footprint with or without a glyph, so labels line up by depth.
+/* Keeps its footprint with or without a chevron, so labels line up by depth.
    Sized as a real hit target: at 12px with a 9px glyph it was unclickable, and
-   the only way to collapse a SELECTABLE branch goes through here. */
+   the only way to collapse a SELECTABLE branch goes through here.
+
+   It stretches to the row's full height rather than sitting as a small centred
+   square, which is what Azure DevOps' own Area and Iteration pickers do — a
+   20x20 box left dead strips above and below the chevron on a 30px row. The
+   drawn chevron is unchanged, so nothing looks different at rest; only the
+   target grows. */
 .stp-twisty {
   flex: 0 0 auto;
+  align-self: stretch;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
   border-radius: 2px;
   color: var(--stp-text);
 }
