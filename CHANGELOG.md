@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.0.1
+
+- **Fixed: `Tab` no longer swallows the key that walks the form.** With the picker closed it moves to the next control, as it always should have. Open, it still confirms the highlighted node.
+- **Focus alone no longer opens the picker.** Tabbing through a form landed on the control and threw a tree — or, in `dialog` style, a whole dialog — in the user's way. Opening is deliberate now: a click anywhere on the field, or `↓` / `Enter` (plus `Space` in `dialog` style, where the field is not typable), or simply typing.
+- Focus still selects the field's text even though it no longer opens, so the first character a keyboard user types replaces the value rather than appending to it.
+
 ## 1.0.0
 
 First stable release. No functional change from 0.3.5: the number marks that the extension has been verified end to end against a real work item form — both picker styles, the native look matched state by state against Azure DevOps' own field, and the keyboard. The 0.x series was the search for the shape, and the shape is settled.

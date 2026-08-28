@@ -91,7 +91,7 @@ A picklist whose values contain no `\` renders as a flat list of roots — a har
   |Nothing — you emptied it|The value is cleared, same as pressing `✕`|
 
   So the field always ends up holding a real node or nothing at all; typed text that means nothing never survives. `Escape` cancels instead, restoring the previous value, because losing a value to a stray keystroke would be a nasty surprise. This is also why typing can only ever *pick* — never write free text. A picklist field rejects a value outside its list with a form-level error (*"contains the value 'x' that is not in the list of supported values"*) that blocks saving the work item, and this control is built so it cannot put you there.
-- **Keyboard throughout** — `↓`/`↑` walk the visible rows, `→`/`←` open and close a branch, `Enter` picks the focused node, `Escape` closes without committing.
+- **Keyboard throughout** — landing on the control with `Tab` does not open it; `↓` or `Enter` does (also `Space` in `dialog` style), and so does typing. Open, `↓`/`↑` walk the rows, `→`/`←` open and close a branch, `Enter` and `Tab` take the highlighted node, `Escape` closes without committing. Closed, `Tab` walks on to the next field.
 - **Opens where you left off, not where you were** — each opening expands only the path down to the current value, so the tree never drifts towards permanently open.
 - **A value outside the list** — a path that was renamed or written by hand still shows up, selected and flagged `not in list`, rather than leaving the control blank while the field holds a value.
 - **Clear** — the `✕` next to the current value empties the field, for whenever the field is not required.

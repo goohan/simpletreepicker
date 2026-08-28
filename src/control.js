@@ -406,10 +406,14 @@ function captureDom() {
   dom.tree = document.getElementById("stp-tree");
   dom.message = document.getElementById("stp-message");
 
-  dom.input.addEventListener("focus", () => {
-    if (state.pickerStyle === "dialog") openDialog();
-    else if (!state.open) openPanel();
-  });
+  // Focus alone NEVER opens the picker. Landing here while tabbing through the
+  // form must not throw a tree or a dialog in the user's way; opening is always
+  // deliberate — a click, a key that means "open", or typing.
+  //
+  // The text is selected all the same, so the first character a keyboard user
+  // types REPLACES the value rather than appending to it. Without that, tabbing
+  // in and typing would search for "Development\SalesforceX" and find nothing.
+  dom.input.addEventListener("focus", () => dom.input.select());
 
   // One handler for the WHOLE field, chevron and padding included. Hanging it
   // on the input alone left dead zones — the field's padding and the gap beside
@@ -449,8 +453,26 @@ function captureDom() {
   });
 
   // All of it read in the field, which never gives up the caret. Rows are not
-  // focusable any more, so there is nothing else for these keys to reach.
+  // focusable, so there is nothing else for these keys to reach.
   dom.input.addEventListener("keydown", (event) => {
+    // The keys that mean "open" — the keyboard's way in, since focus no longer
+    // opens. Space only where the field is not typable: inline it is a character.
+    const asksToOpen =
+      event.key === "ArrowDown" ||
+      event.key === "Enter" ||
+      (event.key === " " && dom.input.readOnly);
+
+    if (!state.open) {
+      if (asksToOpen) {
+        event.preventDefault();
+        if (state.pickerStyle === "dialog") openDialog();
+        else openPanel();
+      }
+      // Everything else — Tab above all — is left to the form. A closed picker
+      // has no business swallowing the key that walks to the next field.
+      return;
+    }
+
     if (event.key === "Escape") {
       event.preventDefault();
       closePanel({ commit: false });
@@ -458,11 +480,10 @@ function captureDom() {
     }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
-      if (!state.open) openPanel();
-      else moveActive(event.key === "ArrowDown" ? 1 : -1);
+      moveActive(event.key === "ArrowDown" ? 1 : -1);
       return;
     }
-    if (state.open && (event.key === "ArrowRight" || event.key === "ArrowLeft")) {
+    if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
       const wantOpen = event.key === "ArrowRight";
       const path = state.activePath;
       if (path && rowFor(path)?.querySelector(".stp-twisty.is-clickable") && state.expanded.has(path) !== wantOpen) {
@@ -471,10 +492,9 @@ function captureDom() {
       }
       return;
     }
-    // Enter and Tab do the same thing, the way an editor's completion list
-    // behaves: they take the highlighted item rather than moving on. Tab
-    // getting preventDefault is the whole point — otherwise it would leave for
-    // the next field and the highlight would go unclaimed.
+    // Open, Enter and Tab agree: take the highlighted node, the way an editor's
+    // completion list behaves. Tab's preventDefault is the point — it confirms
+    // here instead of walking away and leaving the highlight unclaimed.
     if (event.key === "Enter" || event.key === "Tab") {
       event.preventDefault();
       commitActive();
