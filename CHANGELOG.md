@@ -1,5 +1,14 @@
 # Change Log
 
+## 0.2.3
+
+Matched against screenshots of the native field in all four of its states, rather than from memory:
+
+- **No caret at rest.** Azure DevOps shows none until you reach for the field, and neither does this now. The caret is also drawn with borders instead of a glyph, because the native one is a thin chevron and a font's filled triangle reads visibly heavier.
+- **The hover fill is white, not grey.** It was `--palette-neutral-4`; the native field fills with the surface color and rings itself in `--palette-neutral-30`.
+- **The open state's blue rule reads about two pixels thick**, matched with an inset shadow so the border stays 1px and nothing inside the field shifts between states.
+- **The selected row is ringed in the accent**, not just filled with the selection tint, and rows grew to 30px to sit closer to the native list.
+
 ## 0.2.2
 
 - **Fixed: the `dialog` style opened an empty dialog.** The content contribution was declared as `ms.vss-web.control`; the type the host resolves for dialog and panel content is `ms.vss-web.external-content`. The host drew the dialog frame and title and then found nothing to put in it.

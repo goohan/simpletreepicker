@@ -87,15 +87,19 @@ body {
 }
 
 .stp-toggle:hover {
-  background: var(--stp-field);
-  border-color: var(--stp-line);
+  background: var(--stp-surface);
+  border-color: rgba(var(--palette-neutral-30, 166, 166, 166), 1);
 }
 
+/* Open and focused, the native combo shows a blue rule that reads about two
+   pixels thick. Faking the second pixel with an inset shadow keeps the border
+   at 1px, so nothing inside the field shifts when the state changes. */
 .stp-toggle:focus-visible,
 .stp-toggle[aria-expanded="true"] {
   outline: none;
-  background: var(--stp-field);
+  background: var(--stp-surface);
   border-color: var(--stp-focus);
+  box-shadow: inset 0 0 0 1px var(--stp-focus);
 }
 
 .stp-value {
@@ -110,10 +114,29 @@ body {
   color: var(--stp-muted);
 }
 
+/* Drawn with borders rather than a glyph: the native caret is a thin chevron,
+   and the filled triangle a font would give is visibly heavier. Absent at rest
+   — Azure DevOps shows no caret until you reach for the field — and it appears
+   with the rest of the affordance. */
 .stp-chevron {
   flex: 0 0 auto;
-  font-size: 9px;
-  color: var(--stp-muted);
+  width: 7px;
+  height: 7px;
+  margin-right: 2px;
+  border-right: 1.5px solid var(--stp-text);
+  border-bottom: 1.5px solid var(--stp-text);
+  transform: translateY(-2px) rotate(45deg);
+  opacity: 0;
+}
+
+.stp-toggle:hover .stp-chevron,
+.stp-toggle:focus-visible .stp-chevron,
+.stp-toggle[aria-expanded="true"] .stp-chevron {
+  opacity: 1;
+}
+
+.stp-toggle[aria-expanded="true"] .stp-chevron {
+  transform: translateY(1px) rotate(-135deg);
 }
 
 .stp-button {
@@ -207,8 +230,9 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-height: 26px;
+  min-height: 30px;
   padding: 2px 6px 2px 4px;
+  border: 1px solid transparent;
   cursor: pointer;
   user-select: none;
 }
@@ -222,8 +246,10 @@ body {
   outline-offset: -1px;
 }
 
+/* The native list rings its selected row in the accent as well as filling it. */
 .stp-row.is-selected {
   background: var(--stp-selected);
+  border-color: var(--stp-accent);
 }
 
 /* A node that exists only to hold children: it groups, it is not a value. */

@@ -75,7 +75,6 @@ function renderHeader() {
   dom.value.classList.toggle("is-empty", !state.value);
   dom.toggle.title = state.value || "Pick a value";
   dom.toggle.setAttribute("aria-expanded", String(state.open));
-  dom.chevron.textContent = state.open ? "▴" : "▾";
   dom.clear.hidden = !state.value;
   dom.message.textContent = state.message;
   dom.message.hidden = !state.message;
@@ -288,7 +287,6 @@ function captureDom() {
   dom.root = document.getElementById("stp-root");
   dom.toggle = document.getElementById("stp-toggle");
   dom.value = document.getElementById("stp-value");
-  dom.chevron = document.getElementById("stp-chevron");
   dom.clear = document.getElementById("stp-clear");
   dom.panel = document.getElementById("stp-panel");
   dom.filter = document.getElementById("stp-filter");
