@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.3.5
+
+Both of these were the same defect: a listener registered **twice**, so every click ran its handler twice.
+
+- **Fixed: the dialog took two Escapes to close**, and sat under two layers of dimming. There were genuinely two dialogs, stacked.
+- **Fixed: clicking exactly on the chevron flashed the panel open and shut.** The first handler opened it; the second found it already open and closed it. Clicking anywhere else on the field was unaffected, because that branch is guarded by "only if closed" while the chevron's toggles.
+- A test now fails on any element/event pair bound more than once, and the dialog refuses to open a second one over itself.
+
 ## 0.3.4
 
 - **The keyboard now works the way a combo box does.** The caret stays in the field while the arrows walk the list — the odd-looking trick every native picker uses, so you can keep typing without ever leaving the text. Rows are no longer focusable at all, which removes a whole family of bugs at the source: a re-render used to destroy the focused row and every listener read that as the user walking away.

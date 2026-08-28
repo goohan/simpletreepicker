@@ -44,6 +44,8 @@ const state = {
   open: false,
   /** "inline" (panel that pushes) or "dialog" (host dialog that floats). */
   pickerStyle: "inline",
+  /** Whether a host dialog is already up, so a second call cannot stack one. */
+  dialogOpen: false,
   /** The highlighted row. The caret never leaves the field, so "where the
    *  arrows are" is state, not focus — the native combo pattern. */
   activePath: "",
@@ -274,11 +276,21 @@ async function closePanel({ commit = true } = {}) {
  * that the user closes the dialog by hand.
  */
 async function openDialog() {
+  // Belt and braces against opening two at once. It happened for a dull reason
+  // — a listener registered twice, so every click ran the handler twice — and
+  // two stacked dialogs each need their own dismissal, which reads as the first
+  // Escape doing nothing. The duplicate is gone; this makes the symptom
+  // unreachable whatever causes a second call.
+  if (state.dialogOpen) return;
   try {
     const layout = await SDK.getService(HOST_PAGE_LAYOUT_SERVICE_ID);
+    state.dialogOpen = true;
     layout.openCustomDialog(`${SDK.getExtensionContext().id}.${DIALOG_CONTRIBUTION}`, {
       title: state.fieldName ? `Select a value` : "Simple Tree Picker",
       lightDismiss: true,
+      onClose: () => {
+        state.dialogOpen = false;
+      },
       configuration: {
         paths: state.paths,
         value: state.value,
@@ -286,6 +298,7 @@ async function openDialog() {
       },
     });
   } catch (error) {
+    state.dialogOpen = false;
     state.message = `Could not open the picker: ${error?.message ?? error}`;
     render();
   }
@@ -466,40 +479,6 @@ function captureDom() {
       event.preventDefault();
       commitActive();
     }
-  });
-
-  // One handler for the WHOLE field, chevron and padding included. Hanging it
-  // on the input alone left dead zones — the field's padding and the gap beside
-  // the chevron swallowed clicks and the control just sat there, which is what
-  // made opening feel sticky.
-  //
-  // Opening by mouse routes through focus() rather than the browser's own caret
-  // placement: otherwise the mouseup that follows collapses the selection
-  // openPanel just made, and the first keystroke APPENDS to the current value
-  // instead of replacing it. Once open, clicks in the text are left alone so
-  // the caret can be placed normally.
-  dom.field.addEventListener("mousedown", (event) => {
-    if (state.pickerStyle === "dialog") {
-      event.preventDefault();
-      openDialog();
-      return;
-    }
-    if (event.target === dom.chevron) {
-      event.preventDefault();
-      if (state.open) closePanel();
-      else openPanel();
-      return;
-    }
-    if (!state.open) {
-      event.preventDefault();
-      openPanel();
-    }
-  });
-
-  dom.input.addEventListener("input", () => {
-    state.filter = dom.input.value;
-    state.open = true;
-    render();
   });
 
   // Clicking INSIDE the panel must never blur the field. Without this, clicking

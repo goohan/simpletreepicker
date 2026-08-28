@@ -68,6 +68,21 @@ test("every CSS class the scripts assign is styled", () => {
   assert.deepEqual(unstyled, [], `assigned but never styled: ${unstyled.join(", ")}`);
 });
 
+test("no listener is registered twice for the same element and event", () => {
+  // A duplicated registration is invisible in review and vicious in use: every
+  // handler simply runs twice. It shipped once, and produced two stacked host
+  // dialogs, and a chevron whose first handler opened the panel while the
+  // second saw it already open and closed it again — the click looked like it
+  // did nothing at all.
+  for (const [label, source] of [["control.js", control], ["dialog.js", dialog]]) {
+    const pairs = [...source.matchAll(/(dom\.\w+|window|document)\.addEventListener\(\s*"(\w+)"/g)].map(
+      (match) => `${match[1]} ${match[2]}`,
+    );
+    const duplicated = [...new Set(pairs.filter((pair, i) => pairs.indexOf(pair) !== i))];
+    assert.deepEqual(duplicated, [], `${label} binds these twice: ${duplicated.join(", ")}`);
+  }
+});
+
 test("the dialog never writes to the work item itself", () => {
   // The control owns the field; the dialog reports the pick through a callback.
   // Keeping it that way is what stops a dialog-only bug from corrupting data.
