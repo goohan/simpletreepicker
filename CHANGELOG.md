@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.0.0
+
+First stable release. No functional change from 0.3.5: the number marks that the extension has been verified end to end against a real work item form — both picker styles, the native look matched state by state against Azure DevOps' own field, and the keyboard. The 0.x series was the search for the shape, and the shape is settled.
+
+It also carries the icon attribution to the marketplace listing for the first time.
+
 ## 0.3.5
 
 Both of these were the same defect: a listener registered **twice**, so every click ran its handler twice.
