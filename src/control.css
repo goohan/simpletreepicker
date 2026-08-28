@@ -110,6 +110,8 @@ body {
   white-space: nowrap;
 }
 
+/* Nothing to paint: an empty field shows an empty field. The class stays as a
+   state hook — for a placeholder, should one ever be wanted. */
 .stp-value.is-empty {
   color: var(--stp-muted);
 }

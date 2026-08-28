@@ -71,7 +71,10 @@ function renderTree() {
 }
 
 function renderHeader() {
-  dom.value.textContent = state.value || "(none)";
+  // Empty means empty — no "(none)" placeholder. A native Azure DevOps field
+  // with no value shows nothing at all until you reach for it, and the label
+  // the form draws above the control already says which field this is.
+  dom.value.textContent = state.value;
   dom.value.classList.toggle("is-empty", !state.value);
   dom.toggle.title = state.value || "Pick a value";
   dom.toggle.setAttribute("aria-expanded", String(state.open));

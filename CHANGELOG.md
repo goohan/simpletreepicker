@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.2.5
+
+- **An empty field shows an empty field**, not the words `(none)`. A native Azure DevOps field with no value renders nothing at all until you reach for it, and the label the form draws above the control already says which field it is.
+
 ## 0.2.4
 
 - **Fixed: a stray wedge stuck to the field's chevron.** 0.2.3 started drawing the chevron in CSS but left the old `▾` character sitting in the markup, so the glyph was rotated 45° along with the box it was inside. The span is empty now.
