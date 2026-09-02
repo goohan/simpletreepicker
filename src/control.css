@@ -171,6 +171,66 @@ body {
   outline-offset: -1px;
 }
 
+/* --------------------------------------------------------- field states */
+
+/* Read-only, as the native field shows it: a lock, the value greyed, and none
+   of the affordance — no chevron, no fill on hover, no clear button. The FORM
+   decides when: a read-only work item, a read-only field, or a rule that locks
+   the field in the current state (that last one it never announces, so the
+   control learns it from a refused write and wears the lock from then on). */
+.stp-field.is-readonly {
+  cursor: default;
+}
+
+.stp-field.is-readonly:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+.stp-field.is-readonly .stp-input {
+  color: var(--text-disabled-color, rgba(0, 0, 0, 0.38));
+  cursor: default;
+}
+
+.stp-field.is-readonly .stp-chevron {
+  display: none;
+}
+
+.stp-lock {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--text-disabled-color, rgba(0, 0, 0, 0.38));
+}
+
+.stp-lock[hidden] {
+  display: none;
+}
+
+/* Required and empty. The native form puts a red mark beside the LABEL, which
+   lives in the host page and is out of this frame's reach, so the mark sits in
+   the field instead — same red, same "!" — and the field's rule turns red with
+   it. Declared after the focus rules so the red underline survives focus. */
+.stp-field.is-required {
+  border-bottom-color: var(--status-error-text, rgba(218, 10, 0, 1));
+}
+
+.stp-required {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--status-error-text, rgba(218, 10, 0, 1));
+  color: rgba(var(--palette-neutral-0, 255, 255, 255), 1);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+}
+
+.stp-required[hidden] {
+  display: none;
+}
+
 /* -------------------------------------------------------------- the panel */
 
 /* Dressed as an Azure DevOps callout — own surface, hairline and depth-8

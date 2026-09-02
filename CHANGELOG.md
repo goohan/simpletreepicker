@@ -1,5 +1,11 @@
 # Change Log
 
+## 1.0.3
+
+- **The control now wears the field's state.** Read-only — a read-only work item, a read-only field, or a rule that locks the field in the work item's current state — shows as the native field does: a lock, the value greyed, no chevron, no clear button, and nothing opens. Required-and-empty shows a red mark in the field and a red rule under it. Before, the control looked and behaved the same in every state: it took the edit, and the only sign anything was wrong was the form's banner and a disabled Save.
+- The rule-driven lock is the one state the host never announces to an extension, so the control learns it the only way it can: a write the form refuses (a value the picklist allows, flagged invalid all the same) is undone on the spot and the control locks itself, until another field changes and the rules are re-evaluated. Required-and-empty is read from the form's invalid fields whenever any field changes, since it is other fields — State above all — that fire those rules.
+- The local preview grew three host toggles — read-only item, rule lock, required — so all three states can be seen without deploying.
+
 ## 1.0.2
 
 - **A bigger target on the tree's expanders.** They were a 20x20 square centred on a 30px row, leaving dead strips above and below the chevron. The target now fills the row height and is a little wider, the way the native Area and Iteration pickers behave. The drawn chevron is unchanged, so nothing looks different at rest.

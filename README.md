@@ -95,6 +95,7 @@ A picklist whose values contain no `\` renders as a flat list of roots — a har
 - **Opens where you left off, not where you were** — each opening expands only the path down to the current value, so the tree never drifts towards permanently open.
 - **A value outside the list** — a path that was renamed or written by hand still shows up, selected and flagged `not in list`, rather than leaving the control blank while the field holds a value.
 - **Clear** — the `✕` next to the current value empties the field, for whenever the field is not required.
+- **Read-only and required, as the form says** — when the work item is read-only, the field is, or a rule locks it in the work item's current state, the control shows a lock and greys the value: nothing opens, nothing changes. A rule that applies only in some states is one the host never announces to an extension, so the control catches it the instant a write is refused, undoes the write and locks itself, and unlocks when another field changes and the rules are re-evaluated. Required and empty shows a red `!` in the field, because the red mark the form puts beside its own labels lives outside the control's frame.
 - **Theme** — follows the user's **Azure DevOps** theme, light or dark, rather than the browser's.
 
 ## What "Simple" means

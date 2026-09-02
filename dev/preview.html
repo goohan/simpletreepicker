@@ -58,6 +58,12 @@
           <button id="set-orphan" type="button">Set a value outside the list</button>
           <button id="do-refresh" type="button">onRefreshed</button>
         </p>
+        <p>
+          <strong>Field state (host):</strong>
+          <button id="t-readonly" type="button">toggle read-only item</button>
+          <button id="t-rule-lock" type="button">toggle rule lock</button>
+          <button id="t-required" type="button">toggle required</button>
+        </p>
         <div id="log"></div>
       </div>
     </div>
@@ -85,6 +91,9 @@
       document.getElementById("set-orphan").addEventListener("click", () =>
         tell("set-value", ["Renamed", "Old", "Path"].join("\\")));
       document.getElementById("do-refresh").addEventListener("click", () => tell("refresh"));
+      document.getElementById("t-readonly").addEventListener("click", () => tell("toggle-readonly"));
+      document.getElementById("t-rule-lock").addEventListener("click", () => tell("toggle-rule-lock"));
+      document.getElementById("t-required").addEventListener("click", () => tell("toggle-required"));
     </script>
   </body>
 </html>

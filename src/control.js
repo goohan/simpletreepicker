@@ -49,6 +49,15 @@ const state = {
   /** The highlighted row. The caret never leaves the field, so "where the
    *  arrows are" is state, not focus — the native combo pattern. */
   activePath: "",
+  /** The form will not take a write right now: the work item is read-only, the
+   *  field is, or a rule locks it in the current state. Mirrors the native
+   *  field's lock — the picker does not open and the value cannot change. */
+  readOnly: false,
+  /** A rule locked the field, and the control found out the only way it can:
+   *  by a write the form refused. Cleared whenever the form's state moves on. */
+  ruleLocked: false,
+  /** The form flags the field as required and it is empty. */
+  required: false,
 };
 
 let formService = null;
@@ -125,13 +134,21 @@ function renderHeader() {
   // The input mirrors the value, EXCEPT while the panel is open, when it
   // belongs to whatever the user is typing.
   if (!state.open) dom.input.value = state.value;
-  dom.input.title = state.value || "Pick a value";
+  dom.input.title = state.readOnly ? "This field is read-only" : state.value || "Pick a value";
   dom.input.setAttribute("aria-expanded", String(state.open));
   // Typing filters the inline tree; with the dialog style there is no inline
-  // tree to filter, so the field stays a button in all but name.
-  dom.input.readOnly = state.pickerStyle === "dialog";
+  // tree to filter, so the field stays a button in all but name. Locked, it is
+  // plain text whichever the style.
+  dom.input.readOnly = state.readOnly || state.pickerStyle === "dialog";
+  dom.input.setAttribute("aria-readonly", String(state.readOnly));
+  dom.input.setAttribute("aria-required", String(state.required));
+  dom.input.setAttribute("aria-invalid", String(state.required));
   dom.field.classList.toggle("is-open", state.open);
-  dom.clear.hidden = !state.value;
+  dom.field.classList.toggle("is-readonly", state.readOnly);
+  dom.field.classList.toggle("is-required", state.required);
+  dom.lock.hidden = !state.readOnly;
+  dom.required.hidden = !state.required;
+  dom.clear.hidden = !state.value || state.readOnly;
   dom.message.textContent = state.message;
   dom.message.hidden = !state.message;
 }
@@ -191,6 +208,7 @@ function resetExpansion() {
  * the tree open permanently and cost ~320px of every form that used it.
  */
 function openPanel() {
+  if (state.readOnly) return;
   state.open = true;
   state.filter = "";
   // The arrows start where the selection is, not at the top of the list: with
@@ -281,7 +299,7 @@ async function openDialog() {
   // two stacked dialogs each need their own dismissal, which reads as the first
   // Escape doing nothing. The duplicate is gone; this makes the symptom
   // unreachable whatever causes a second call.
-  if (state.dialogOpen) return;
+  if (state.dialogOpen || state.readOnly) return;
   try {
     const layout = await SDK.getService(HOST_PAGE_LAYOUT_SERVICE_ID);
     state.dialogOpen = true;
@@ -320,17 +338,35 @@ function rebuildTree() {
  * node, typed text, the clear button, the dialog — shares one error path.
  */
 async function setValue(path) {
-  if (path === state.value) return;
+  if (path === state.value || state.readOnly) return;
+  const previous = state.value;
   try {
-    await formService.setFieldValue(state.fieldName, path);
+    const accepted = await formService.setFieldValue(state.fieldName, path);
+    // A rule can refuse a write WITHOUT throwing: the form takes the value, then
+    // flags the field invalid and blocks Save, and the only sign of it is a
+    // banner at the top of the form — nothing reaches this frame. That is the
+    // read-only-by-rule case the host never announces up front, so it is caught
+    // here instead: a value the picklist itself allows, refused all the same,
+    // means the field is locked. The write is undone and the control locks
+    // itself, as the native field would have been from the start.
+    const refused =
+      accepted === false || (Boolean(path) && state.paths.includes(path) && (await flaggedInvalid()));
+    if (refused) {
+      await formService.setFieldValue(state.fieldName, previous);
+      state.ruleLocked = true;
+      state.readOnly = true;
+      state.message = "This field is read-only in the work item's current state. The change was undone.";
+      return;
+    }
     state.value = path;
     rebuildTree();
     state.message = "";
   } catch (error) {
-    // The usual cause is a read-only work item or field: report it in place
-    // instead of leaving the interaction silently doing nothing.
+    // A host that throws instead: report it in place rather than leaving the
+    // interaction silently doing nothing.
     state.message = `Could not set the value: ${error?.message ?? error}`;
   }
+  state.required = !state.value && (await flaggedInvalid());
 }
 
 async function select(path) {
@@ -381,9 +417,64 @@ async function syncValue() {
   for (const ancestor of ancestorsOf(state.value)) state.expanded.add(ancestor);
 }
 
+/** The form's own record of a field, whatever shape the host hands back. */
+function isThisField(field) {
+  return String(field?.referenceName ?? field?.name ?? "").toLowerCase() === state.fieldName.toLowerCase();
+}
+
+/**
+ * Whether the form currently holds this field invalid. That is the one signal
+ * the host gives an extension about the field's RULES: a required field that is
+ * empty shows up here the moment the rule fires, and a write a rule refuses
+ * shows up here right after the write.
+ */
+async function flaggedInvalid() {
+  try {
+    if (typeof formService.getInvalidFields !== "function") return false;
+    const invalid = await formService.getInvalidFields();
+    return Array.isArray(invalid) && invalid.some(isThisField);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reads what the form knows about the field's state and mirrors it, so the
+ * control wears the lock and the required mark the native field would.
+ *
+ * Two of the three lock sources can be asked for up front: a read-only work
+ * item (isReadOnly) and a read-only field (getFields). The third — a RULE that
+ * locks the field in the current state — the host never announces; the control
+ * only learns of it when a write comes back refused (see setValue), and keeps
+ * that lock until the form's state moves on.
+ */
+async function syncFieldState() {
+  let readOnly = false;
+  try {
+    if (typeof formService.isReadOnly === "function") readOnly = Boolean(await formService.isReadOnly());
+  } catch {
+    // Not every host answers; an unknown state is treated as writable.
+  }
+  if (!readOnly) {
+    try {
+      if (typeof formService.getFields === "function") {
+        const fields = await formService.getFields([state.fieldName]);
+        readOnly = Boolean((Array.isArray(fields) ? fields : []).find(isThisField)?.readOnly);
+      }
+    } catch {
+      // Same: no answer means no lock.
+    }
+  }
+  state.readOnly = readOnly || state.ruleLocked;
+  state.required = !state.value && (await flaggedInvalid());
+}
+
 async function refresh() {
   await loadPaths();
   await syncValue();
+  // A fresh start for the form is a fresh start for the lock a rule imposed.
+  state.ruleLocked = false;
+  await syncFieldState();
   // A load, a refresh or a reset is a fresh start for the form, so the tree
   // starts closed too. onFieldChanged deliberately does NOT come through here:
   // collapsing the tree under someone mid-edit would be hostile.
@@ -405,6 +496,8 @@ function captureDom() {
   dom.panel = document.getElementById("stp-panel");
   dom.tree = document.getElementById("stp-tree");
   dom.message = document.getElementById("stp-message");
+  dom.lock = document.getElementById("stp-lock");
+  dom.required = document.getElementById("stp-required");
 
   // Focus alone NEVER opens the picker. Landing here while tabbing through the
   // form must not throw a tree or a dialog in the user's way; opening is always
@@ -426,6 +519,9 @@ function captureDom() {
   // instead of replacing it. Once open, clicks in the text are left alone so
   // the caret can be placed normally.
   dom.field.addEventListener("mousedown", (event) => {
+    // Locked, the field is plain text: nothing opens, and the click is left
+    // alone so the text can still be selected and copied.
+    if (state.readOnly) return;
     if (state.pickerStyle === "dialog") {
       event.preventDefault();
       openDialog();
@@ -444,6 +540,10 @@ function captureDom() {
   });
 
   dom.input.addEventListener("input", () => {
+    if (state.readOnly) {
+      dom.input.value = state.value;
+      return;
+    }
     state.filter = dom.input.value;
     state.open = true;
     // The highlight follows the search, so Enter and Tab always have something
@@ -455,6 +555,8 @@ function captureDom() {
   // All of it read in the field, which never gives up the caret. Rows are not
   // focusable, so there is nothing else for these keys to reach.
   dom.input.addEventListener("keydown", (event) => {
+    // Locked, every key belongs to the form — Tab above all.
+    if (state.readOnly) return;
     // The keys that mean "open" — the keyboard's way in, since focus no longer
     // opens. Space only where the field is not typable: inline it is a character.
     const asksToOpen =
@@ -571,11 +673,16 @@ async function main() {
     onRefreshed: refresh,
     onReset: refresh,
     onSaved: syncAndRender,
+    // ANY field changing is worth a look, not just this one: rules react to
+    // other fields — State above all — and can lock this one or make it
+    // required without its value moving at all.
     onFieldChanged: (args) => {
       const changed = Object.keys(args?.changedFields ?? {});
-      if (changed.some((name) => name.toLowerCase() === state.fieldName.toLowerCase())) {
-        syncAndRender();
-      }
+      const mine = changed.some((name) => name.toLowerCase() === state.fieldName.toLowerCase());
+      // Another field moved, so the rules were re-evaluated: a lock they
+      // imposed earlier may be gone, and the next write will tell.
+      if (!mine) state.ruleLocked = false;
+      syncAndRender({ value: mine });
     },
   }));
 
@@ -583,8 +690,9 @@ async function main() {
   await SDK.notifyLoadSucceeded();
 }
 
-async function syncAndRender() {
-  await syncValue();
+async function syncAndRender({ value = true } = {}) {
+  if (value) await syncValue();
+  await syncFieldState();
   render();
 }
 

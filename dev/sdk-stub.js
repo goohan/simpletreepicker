@@ -34,6 +34,15 @@ const DEMO_PATHS = [
 const field = { value: "Development\\Salesforce" };
 let observer = null;
 
+/**
+ * What the fake form knows about the field's state, toggled from the harness.
+ * `ruleLocked` plays the rule the real host never announces: the write is
+ * TAKEN, then the field shows up as invalid — exactly the behavior the control
+ * has to detect and undo. `committed` is the value the form considers saved,
+ * so a locked write can be told apart from the value it displaced.
+ */
+const formState = { readOnly: false, ruleLocked: false, required: false, committed: field.value };
+
 /** Everything the harness page shows goes through here. */
 function report(event, detail) {
   parent.postMessage({ source: "stp-preview", event, detail, value: field.value }, "*");
@@ -51,6 +60,21 @@ const formService = {
   async getAllowedFieldValues(name) {
     report("getAllowedFieldValues", name);
     return DEMO_PATHS;
+  },
+  async isReadOnly() {
+    report("isReadOnly", String(formState.readOnly));
+    return formState.readOnly;
+  },
+  async getFields(names) {
+    report("getFields", JSON.stringify(names));
+    return [{ referenceName: FIELD_NAME, name: "Demo", readOnly: false }];
+  },
+  async getInvalidFields() {
+    const invalid = [];
+    if (formState.required && !field.value) invalid.push({ referenceName: FIELD_NAME });
+    if (formState.ruleLocked && field.value !== formState.committed) invalid.push({ referenceName: FIELD_NAME });
+    report("getInvalidFields", invalid.length ? FIELD_NAME : "(none)");
+    return invalid;
   },
 };
 
@@ -146,4 +170,23 @@ window.addEventListener("message", (message) => {
     observer?.onFieldChanged?.({ changedFields: { [FIELD_NAME]: value } });
   }
   if (command === "refresh") observer?.onRefreshed?.();
+  // The host's side of the three states. A read-only work item arrives with a
+  // refresh; the two rule-driven states arrive the way rules do — riding on a
+  // change to ANOTHER field, State here.
+  if (command === "toggle-readonly") {
+    formState.readOnly = !formState.readOnly;
+    report("host", `work item read-only = ${formState.readOnly}`);
+    observer?.onRefreshed?.();
+  }
+  if (command === "toggle-rule-lock") {
+    formState.ruleLocked = !formState.ruleLocked;
+    formState.committed = field.value;
+    report("host", `rule locks the field = ${formState.ruleLocked}`);
+    observer?.onFieldChanged?.({ changedFields: { "System.State": "Escalated" } });
+  }
+  if (command === "toggle-required") {
+    formState.required = !formState.required;
+    report("host", `rule requires the field = ${formState.required}`);
+    observer?.onFieldChanged?.({ changedFields: { "System.State": "Escalated" } });
+  }
 });
